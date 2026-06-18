@@ -6,6 +6,7 @@ import {
   fetchEventsMonth, fetchTodayTodoEvents, addEvent, updateEvent, deleteEvent, setEventDone,
   todayStr, todayDow, showsToday, PRESETS,
 } from './data.js';
+import { supabase } from './supabaseClient.js';
 
 // ────────────────────────────────────────────
 // 상태
@@ -14,6 +15,7 @@ const now0 = new Date();
 const state = {
   apps: [], checked: {}, total: 0, monthMap: {},
   selDow: todayDow(), loading: true,
+  user: null,
   tab: 'today',                 // 'today' | 'cal'
   todayEvents: [],              // 오늘 + is_todo 일정 (체크리스트용)
   events: [],                   // calYear/calMonth 의 일정
@@ -82,6 +84,10 @@ function fmtTime(t) {
 }
 const todayVisible = () => state.apps.filter((a) => showsToday(a, todayDow()));
 const selVisible = () => state.apps.filter((a) => showsToday(a, state.selDow));
+function userName() {
+  const m = state.user?.user_metadata || {};
+  return m.name || m.full_name || m.user_name || m.nickname || m.preferred_username || '나';
+}
 
 // ────────────────────────────────────────────
 // SVG 조각
@@ -117,9 +123,10 @@ function todayView() {
       <span class="moon">${MOON}</span>
       <div>
         <div class="wordmark">매일 밤 잠들기 전 나를 생각해</div>
-        <div class="greet">오늘 하루도,<br><span class="em">잘 걸었어요?</span></div>
+        <div class="greet">${esc(userName())}님,<br><span class="em">잘 걸었어요?</span></div>
         <div class="date">${dateLabelToday()} 밤</div>
       </div>
+      <button class="logout" data-action="logout">로그아웃</button>
     </header>
 
     <div class="week">${weekHTML()}</div>
@@ -314,8 +321,10 @@ function ensureTabbar() {
       state.tab = b.dataset.tab; render(); window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   }
+  tabbarEl.style.display = 'flex';
   tabbarEl.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b.dataset.tab === state.tab));
 }
+function hideTabbar() { if (tabbarEl) tabbarEl.style.display = 'none'; }
 
 // ────────────────────────────────────────────
 // 체크 토글 — 앱
@@ -541,6 +550,8 @@ $('#app').addEventListener('click', (e) => {
     case 'cal-day': state.selDate = date; render(); break;
     case 'toggle-event-cal': toggleEventCal(id); break;
     case 'add-event': openEventForm(null); break;
+    case 'logout': signOut(); break;
+    case 'kakao-login': signInKakao(); break;
   }
 });
 
@@ -593,12 +604,49 @@ async function reload() {
   state.events = me; state.todayEvents = te;
   state.loading = false; render();
 }
-async function init() {
-  render();
+async function renderApp() {
+  state.loading = true; render();
   try { await reload(); }
   catch (e) {
     console.error(e);
     $('#app').innerHTML = `<div class="wrap"><div class="empty">데이터를 불러오지 못했어요 😢<br>인터넷 연결이나 Supabase 설정을 확인해줘요.<br><br><small>${esc(e.message || e)}</small></div></div>`;
   }
 }
-init();
+
+// ── 로그인 ──
+function renderLogin() {
+  hideTabbar();
+  $('#app').innerHTML = `<div class="login-wrap"><div class="login-card">
+    <div class="login-moon">${MOON}</div>
+    <div class="login-title">매일 밤<br>잠들기 전 나를 생각해</div>
+    <div class="login-sub">오늘 하루도 수고한 나를 위해 🌙<br>카카오로 시작해요</div>
+    <button class="kakao-btn" data-action="kakao-login">카카오로 로그인</button>
+  </div></div>`;
+}
+async function signInKakao() {
+  try { await supabase.auth.signInWithOAuth({ provider: 'kakao', options: { redirectTo: window.location.origin } }); }
+  catch (e) { toast('로그인을 시작하지 못했어요'); }
+}
+async function signOut() {
+  try { await supabase.auth.signOut(); } catch (e) { /* noop */ }
+  state.user = null; hideTabbar(); renderLogin();
+}
+
+async function boot() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    state.user = session?.user ?? null;
+  } catch (e) { state.user = null; }
+
+  if (state.user) await renderApp();
+  else renderLogin();
+
+  supabase.auth.onAuthStateChange((event, session) => {
+    const u = session?.user ?? null;
+    const changed = (u?.id) !== (state.user?.id);
+    state.user = u;
+    if (!u) renderLogin();
+    else if (changed) renderApp();
+  });
+}
+boot();
