@@ -1,0 +1,310 @@
+/* ============================================================
+   매일 밤 잠들기 전 나를 생각해 — style.css
+   손그림(hand-drawn) + 따뜻한 버터톤 + 깔끔한 UI
+   ============================================================ */
+
+:root{
+  --paper:#FBF3DD;        /* 버터 크림 배경 */
+  --paper-2:#F6E9C8;      /* 한 톤 진한 종이 */
+  --card:#FFFDF6;         /* 카드 면 */
+  --ink:#3F362A;          /* 따뜻한 잉크(손그림 선) */
+  --ink-soft:#9A8C74;     /* 흐린 글자 */
+  --green:#6FA779;        /* 완료 = 솔잎 그린 */
+  --green-tint:#E7F0E2;   /* 완료 카드 배경 */
+  --honey:#E8A93C;        /* 꿀/토스트 포인트 */
+  --moon:#9DB4D8;         /* 밤하늘 포인트 */
+  --danger:#C9695A;       /* 삭제 */
+
+  --chip-mint:#CFE6C6;
+  --chip-peach:#F6D8AE;
+  --chip-blush:#F4CFCC;
+  --chip-sky:#C6DBE3;
+  --chip-lilac:#DCD0EC;
+  --chip-default:#EDE3CB;
+
+  --r:18px 21px 17px 22px / 22px 17px 21px 18px;  /* 손그림 라운드 */
+  --r-sm:12px 14px 11px 13px / 14px 11px 13px 12px;
+  --shadow:3px 4px 0 rgba(63,54,42,.13);
+  --shadow-sm:2px 3px 0 rgba(63,54,42,.12);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  font-family:"Pretendard",system-ui,-apple-system,sans-serif;
+  color:var(--ink);
+  background:
+    radial-gradient(circle at 18% 12%, #FCF6E4 0%, transparent 45%),
+    radial-gradient(circle at 85% 90%, #F7EBCB 0%, transparent 50%),
+    var(--paper);
+  -webkit-font-smoothing:antialiased;
+  min-height:100dvh;
+}
+.hand{font-family:"Gaegu",cursive;font-weight:700;}
+
+/* 화면 컬럼 */
+#app{display:flex;justify-content:center;}
+.wrap{width:100%;max-width:430px;padding:22px 14px 56px;}
+
+/* 포커스 접근성 */
+:focus-visible{outline:3px solid var(--moon);outline-offset:2px;border-radius:6px;}
+
+/* ── 헤더 ──────────────────────────────── */
+.top{display:flex;align-items:flex-start;gap:14px;padding:6px 6px 14px;}
+.moon{flex:none;margin-top:2px;}
+.wordmark{font-size:12.5px;color:var(--ink-soft);letter-spacing:.2px;}
+.greet{font-family:"Gaegu",cursive;font-size:33px;line-height:1.12;font-weight:700;margin-top:2px;}
+.greet .em{color:var(--green);}
+.date{font-size:12.5px;color:var(--ink-soft);margin-top:6px;}
+
+/* ── 요일 바 ───────────────────────────── */
+.week{display:flex;gap:6px;margin:4px 2px 18px;}
+.day{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;
+     padding:8px 0 6px;border:2px solid transparent;border-radius:16px;
+     cursor:pointer;background:none;font:inherit;color:inherit;transition:.15s;}
+.day .dn{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+.day .num{font-family:"Gaegu",cursive;font-weight:700;font-size:17px;
+          width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+          border:2px solid transparent;border-radius:50%;}
+.day.sel{background:var(--card);border-color:var(--ink);box-shadow:var(--shadow-sm);}
+.day.sel .num{background:var(--honey);border-color:var(--ink);
+              border-radius:50% 48% 52% 50% / 52% 50% 48% 50%;}
+.day.sel .dn{color:var(--ink);}
+.day .has{width:5px;height:5px;border-radius:50%;background:var(--moon);}
+.day .has.none{background:transparent;}
+
+/* ── 카드 공통 ─────────────────────────── */
+.card{background:var(--card);border:2.5px solid var(--ink);
+      border-radius:var(--r);box-shadow:var(--shadow);}
+
+/* ── 오늘 요약 ─────────────────────────── */
+.tally{padding:18px 18px 16px;}
+.tally-row{display:flex;justify-content:space-between;align-items:flex-end;}
+.label{font-size:12.5px;color:var(--ink-soft);}
+.today{font-family:"Gaegu",cursive;font-weight:700;font-size:40px;line-height:1;color:var(--honey);}
+.today small{font-size:18px;}
+.sum{text-align:right;}
+.sum b{font-family:"Gaegu",cursive;font-size:22px;font-weight:700;}
+.bar{margin-top:16px;}
+.bar .track{height:14px;border:2px solid var(--ink);border-radius:20px;
+            background:var(--paper-2);overflow:hidden;}
+.bar .fill{height:100%;background:var(--green);border-right:2px solid var(--ink);
+           transition:width .5s ease;}
+.bar .cap{display:flex;justify-content:space-between;margin-top:7px;
+          font-size:12px;color:var(--ink-soft);}
+.bar .cap .hand{font-size:15px;color:var(--ink);}
+
+/* ── 이번 달 도장판 ────────────────────── */
+.month{margin-top:16px;padding:14px 16px 16px;}
+.month h3{font-family:"Gaegu",cursive;font-size:19px;font-weight:700;
+          display:flex;align-items:center;gap:6px;}
+.month .sub{font-size:11.5px;color:var(--ink-soft);margin:2px 0 12px;}
+.dots{display:grid;grid-template-columns:repeat(10,1fr);gap:7px;}
+.dot{aspect-ratio:1;border:2px solid var(--ink);
+     border-radius:50% 48% 52% 50% / 50% 52% 48% 50%;
+     display:flex;align-items:center;justify-content:center;
+     font-size:10px;color:var(--ink-soft);background:#fff;
+     font-family:"Gaegu",cursive;font-weight:700;}
+.dot.done{background:var(--green);border-color:var(--ink);color:#fff;}
+.dot.today{border-color:var(--honey);border-width:2.5px;color:var(--honey);}
+.dot.future{opacity:.4;border-style:dashed;}
+
+/* ── 섹션 헤더 ─────────────────────────── */
+.sec{display:flex;align-items:baseline;justify-content:space-between;margin:26px 4px 12px;}
+.sec h2{font-family:"Gaegu",cursive;font-size:23px;font-weight:700;}
+.sec .count{font-family:"Gaegu",cursive;font-size:17px;color:var(--green);font-weight:700;}
+
+/* ── 체크 카드 ─────────────────────────── */
+.list{display:flex;flex-direction:column;gap:11px;}
+.item{display:flex;align-items:center;gap:13px;
+      background:var(--card);border:2.5px solid var(--ink);border-radius:var(--r);
+      padding:14px 15px;cursor:pointer;user-select:none;box-shadow:var(--shadow);
+      transition:transform .12s ease, background .25s ease, box-shadow .12s ease;}
+.item:active{transform:translate(1px,2px);box-shadow:1px 2px 0 rgba(63,54,42,.12);}
+.item.done{background:var(--green-tint);}
+.item .ic{flex:none;width:42px;height:42px;border:2.5px solid var(--ink);
+          background:var(--paper);border-radius:50% 47% 53% 50% / 50% 53% 47% 50%;
+          display:flex;align-items:center;justify-content:center;}
+.item.done .ic{background:#fff;}
+.item .meta{flex:1;min-width:0;}
+.item .name{font-size:15.5px;font-weight:600;line-height:1.25;
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.item .lower{display:flex;align-items:center;gap:7px;margin-top:5px;flex-wrap:wrap;}
+.chip{font-size:11px;font-weight:600;padding:2px 9px;border:1.5px solid var(--ink);
+      border-radius:20px;background:var(--chip-default);}
+.chip.repeat{background:var(--chip-lilac);display:inline-flex;align-items:center;gap:3px;}
+.pts{font-family:"Gaegu",cursive;font-weight:700;font-size:15px;color:var(--honey);}
+
+/* 체크 동그라미 + 손그림 체크 + 별 */
+.check{flex:none;width:30px;height:30px;border:2.5px solid var(--ink);background:#fff;
+       border-radius:50% 48% 52% 50% / 52% 50% 48% 50%;
+       display:flex;align-items:center;justify-content:center;position:relative;}
+.item.done .check{background:var(--green);}
+.check .tick{width:20px;height:20px;}
+.check .tick path{stroke:#fff;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;
+                  stroke-dasharray:26;stroke-dashoffset:26;}
+.item.done .check .tick path{animation:draw .4s ease forwards;}
+@keyframes draw{to{stroke-dashoffset:0;}}
+.check .star{position:absolute;top:-9px;right:-7px;opacity:0;transform:scale(.4) rotate(-20deg);}
+.item.done .check .star{animation:pop .55s ease .12s forwards;}
+@keyframes pop{40%{opacity:1;transform:scale(1.15) rotate(8deg);}100%{opacity:0;transform:scale(1) rotate(0);}}
+
+/* 카드 끝 살짝 누르기(메뉴) 버튼 */
+.item .more{flex:none;background:none;border:none;color:var(--ink-soft);
+            font-size:20px;line-height:1;padding:4px 2px;cursor:pointer;border-radius:8px;}
+
+/* ── 액션 버튼 ─────────────────────────── */
+.actions{display:flex;gap:10px;margin-top:20px;}
+.btn{flex:1;font-family:"Gaegu",cursive;font-weight:700;font-size:17px;
+     border:2.5px solid var(--ink);border-radius:var(--r);padding:13px;background:var(--card);
+     cursor:pointer;box-shadow:var(--shadow);color:var(--ink);
+     display:flex;align-items:center;justify-content:center;gap:7px;
+     transition:transform .12s, box-shadow .12s;}
+.btn:active{transform:translate(1px,2px);box-shadow:1px 2px 0 rgba(63,54,42,.13);}
+.btn.primary{background:var(--honey);}
+
+/* ── 다 끝났을 때 토닥 메시지 ──────────── */
+.done-note{margin-top:18px;text-align:center;font-family:"Gaegu",cursive;font-size:18px;
+           color:var(--green);font-weight:700;opacity:0;height:0;overflow:hidden;
+           transition:opacity .4s;}
+.done-note.show{opacity:1;height:auto;}
+
+/* ── 빈 상태 / 로딩 ────────────────────── */
+.empty{text-align:center;color:var(--ink-soft);font-size:14px;padding:30px 10px;line-height:1.7;}
+.loading{display:flex;flex-direction:column;align-items:center;gap:14px;padding:80px 0;color:var(--ink-soft);}
+.spinner{width:34px;height:34px;border:3px solid var(--paper-2);border-top-color:var(--green);
+         border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.foot{text-align:center;margin-top:30px;font-size:11px;color:var(--ink-soft);line-height:1.6;}
+
+/* ── 바텀시트 (프리셋 / 추가·수정 폼) ──── */
+.sheet-backdrop{position:fixed;inset:0;background:rgba(63,54,42,.4);z-index:40;
+                opacity:0;transition:opacity .25s;}
+.sheet-backdrop.show{opacity:1;}
+.sheet{position:fixed;left:50%;bottom:0;transform:translateX(-50%) translateY(100%);
+       width:100%;max-width:430px;background:var(--paper);
+       border:2.5px solid var(--ink);border-bottom:0;
+       border-radius:24px 24px 0 0;z-index:41;
+       max-height:86dvh;display:flex;flex-direction:column;
+       transition:transform .3s cubic-bezier(.22,1,.36,1);}
+.sheet.show{transform:translateX(-50%) translateY(0);}
+.sheet-handle{width:44px;height:5px;background:var(--ink);opacity:.25;border-radius:10px;
+              margin:11px auto 4px;flex:none;}
+.sheet-title{font-family:"Gaegu",cursive;font-weight:700;font-size:23px;text-align:center;
+             padding:6px 16px 2px;flex:none;}
+.sheet-sub{text-align:center;font-size:12px;color:var(--ink-soft);padding:0 16px 12px;flex:none;}
+.sheet-body{padding:6px 18px 8px;overflow-y:auto;}
+
+/* 프리셋 목록 */
+.preset-item{display:flex;align-items:center;gap:12px;padding:12px 13px;margin-bottom:9px;
+             background:var(--card);border:2px solid var(--ink);border-radius:var(--r-sm);
+             cursor:pointer;box-shadow:var(--shadow-sm);transition:transform .1s;}
+.preset-item:active{transform:translate(1px,2px);}
+.preset-item.picked{background:var(--green-tint);}
+.preset-item .pname{flex:1;font-size:14.5px;font-weight:600;}
+.preset-item .ppts{font-family:"Gaegu",cursive;font-weight:700;color:var(--honey);font-size:14px;}
+.preset-item .pcheck{width:24px;height:24px;border:2px solid var(--ink);border-radius:50%;
+                     display:flex;align-items:center;justify-content:center;background:#fff;font-size:13px;}
+.preset-item.picked .pcheck{background:var(--green);color:#fff;}
+
+/* 입력 폼 */
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;}
+.field input,.field select{width:100%;font-family:"Pretendard";font-size:14.5px;
+       padding:11px 12px;border:2px solid var(--ink);border-radius:12px;background:#fff;color:var(--ink);}
+.field .row2{display:flex;gap:10px;}
+.field .row2 > *{flex:1;}
+
+/* 요일 선택 칩 */
+.dow-pick{display:flex;gap:6px;}
+.dow-chip{flex:1;padding:9px 0;text-align:center;font-family:"Gaegu",cursive;font-weight:700;
+          font-size:15px;border:2px solid var(--ink);border-radius:11px;background:#fff;cursor:pointer;}
+.dow-chip.on{background:var(--green);color:#fff;}
+.dow-hint{font-size:11.5px;color:var(--ink-soft);margin-top:7px;}
+
+/* 시트 하단 버튼 영역 */
+.sheet-actions{display:flex;gap:10px;padding:12px 18px calc(16px + env(safe-area-inset-bottom));
+               flex:none;border-top:1.5px dashed #E4D8BB;background:var(--paper);}
+.sheet-actions .btn{font-size:16px;padding:12px;}
+.btn.ghost{background:var(--paper);}
+.btn.danger{background:var(--card);color:var(--danger);border-color:var(--danger);box-shadow:3px 4px 0 rgba(201,105,90,.2);}
+
+/* ── 토스트 ────────────────────────────── */
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+       background:var(--ink);color:var(--paper);font-size:13.5px;font-weight:600;
+       padding:11px 18px;border-radius:30px;z-index:60;opacity:0;pointer-events:none;
+       transition:opacity .25s, transform .25s;box-shadow:0 4px 14px rgba(0,0,0,.2);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── 바텀 탭바 + 뷰 전환 (2단계) ───────── */
+.wrap{padding-bottom:96px;}        /* 고정 탭바 공간 확보 */
+.view{display:none;}
+.view.on{display:block;}
+
+.tabbar{position:fixed;left:50%;bottom:0;transform:translateX(-50%);
+        width:100%;max-width:430px;display:flex;z-index:30;
+        background:var(--card);border-top:2.5px solid var(--ink);
+        padding-bottom:env(safe-area-inset-bottom);}
+.tab{flex:1;padding:10px 0 12px;text-align:center;cursor:pointer;border:none;background:none;
+     font-family:inherit;color:var(--ink-soft);font-size:11px;font-weight:600;}
+.tab svg{display:block;margin:0 auto 3px;width:24px;height:24px;}
+.tab.on{color:var(--ink);}
+.tab.on svg path,.tab.on svg rect,.tab.on svg circle,.tab.on svg line{stroke:var(--green);}
+
+/* ── 달력 (2단계) ──────────────────────── */
+.calhead{display:flex;justify-content:space-between;align-items:center;margin:2px 4px 14px;}
+.calhead .m{font-family:"Gaegu",cursive;font-size:24px;font-weight:700;}
+.calhead button{font-family:"Gaegu",cursive;font-size:20px;width:36px;height:36px;color:var(--ink);
+                background:var(--card);border:2.5px solid var(--ink);border-radius:50%;
+                cursor:pointer;box-shadow:var(--shadow-sm);}
+.calhead button:active{transform:translate(1px,2px);}
+.cal{padding:14px 12px 16px;}
+.cal .dow{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:6px;}
+.cal .dow span{text-align:center;font-size:11.5px;font-weight:700;color:var(--ink-soft);}
+.cal .dow span.sun{color:#C98C8C;}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.cell{aspect-ratio:.9;border-radius:13px;padding:5px 0 0;display:flex;flex-direction:column;
+      align-items:center;cursor:pointer;border:2px solid transparent;background:none;
+      font:inherit;color:inherit;}
+.cell .cd{font-family:"Gaegu",cursive;font-size:15px;font-weight:700;}
+.cell.muted{visibility:hidden;cursor:default;}
+.cell.today{border-color:var(--honey);background:#FFF6E2;}
+.cell.sel{border-color:var(--ink);background:var(--card);box-shadow:var(--shadow-sm);}
+.evdots{display:flex;gap:2px;margin-top:3px;flex-wrap:wrap;justify-content:center;max-width:34px;min-height:7px;}
+.evdot{width:6px;height:6px;border-radius:50%;border:1px solid var(--ink);}
+
+.daypanel{margin-top:14px;padding:15px 16px;}
+.daypanel h3{font-family:"Gaegu",cursive;font-size:19px;font-weight:700;margin-bottom:4px;}
+.daypanel .empty{padding:12px 0;text-align:left;}
+.ev{display:flex;align-items:center;gap:11px;padding:11px 2px;border-bottom:1.5px dashed #E4D8BB;cursor:pointer;}
+.ev:last-child{border-bottom:0;}
+.ev .bul{width:14px;height:14px;border:2px solid var(--ink);border-radius:50%;flex:none;
+         display:flex;align-items:center;justify-content:center;}
+.ev.done .bul{background:var(--green);}
+.ev .ebody{flex:1;min-width:0;}
+.ev .et{font-size:14.5px;font-weight:600;}
+.ev.done .et{text-decoration:line-through;color:var(--ink-soft);}
+.ev .es{font-size:11.5px;color:var(--ink-soft);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.ev .eedit{flex:none;background:none;border:none;color:var(--ink-soft);font-size:18px;cursor:pointer;padding:2px 4px;}
+
+.addbtn{width:100%;margin-top:14px;font-family:"Gaegu",cursive;font-weight:700;font-size:17px;
+        padding:13px;background:var(--honey);border:2.5px solid var(--ink);border-radius:var(--r);
+        cursor:pointer;box-shadow:var(--shadow);color:var(--ink);}
+.addbtn:active{transform:translate(1px,2px);box-shadow:1px 2px 0 rgba(63,54,42,.13);}
+
+/* 오늘 체크리스트에 끼어든 '일정' 항목 살짝 구분 */
+.item.event .ic{background:var(--chip-blush);}
+.item.done.event .ic{background:#fff;}
+
+/* 일정 폼 — 색 선택 / 토글 */
+.color-pick{display:flex;gap:9px;}
+.color-dot{width:30px;height:30px;border:2px solid var(--ink);border-radius:50%;cursor:pointer;padding:0;}
+.color-dot.on{box-shadow:0 0 0 3px var(--card),0 0 0 5px var(--ink);}
+.opt-row{display:flex;align-items:center;gap:9px;font-size:13.5px;margin-top:6px;cursor:pointer;}
+.opt-row input{width:18px;height:18px;accent-color:var(--green);}
+
+/* ── 모션 줄이기 설정 존중 ─────────────── */
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important;transition:none !important;}
+}
