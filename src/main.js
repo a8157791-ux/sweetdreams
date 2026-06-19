@@ -5,6 +5,7 @@ import {
   checkIn, uncheckIn,
   fetchEventsMonth, fetchTodayTodoEvents, addEvent, updateEvent, deleteEvent, setEventDone,
   fetchSharedUsers, shareEvent, unshareEvent,
+  fetchFriends, fetchPendingInvites, getOrCreateInvite, acceptInvite, removeFriend, shareFriendEvent,
   todayStr, todayDow, showsToday, PRESETS,
 } from './data.js';
 import { supabase } from './supabaseClient.js';
@@ -20,6 +21,8 @@ const state = {
   calYear: now0.getFullYear(),
   calMonth: now0.getMonth(),
   selDate: todayStr(),
+  friends: [],       // accepted 친구 목록
+  pendingInvites: [], // 받은 대기 초대
 };
 
 const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'];
@@ -149,7 +152,7 @@ function render() {
     app.innerHTML = `<div class="wrap"><div class="loading"><div class="spinner"></div><div>불러오는 중…</div></div></div>`;
     return;
   }
-  app.innerHTML = `<div class="wrap">${state.tab === 'today' ? todayView() : calView()}</div>`;
+  app.innerHTML = `<div class="wrap">${state.tab === 'today' ? todayView() : state.tab === 'cal' ? calView() : friendsView()}</div>`;
   ensureTabbar();
   if (state.tab === 'today') updateTally();
 }
@@ -341,6 +344,63 @@ function dayPanelHTML() {
 }
 function rerenderDayPanel() { const p = $('#daypanel'); if (p) p.innerHTML = dayPanelHTML(); }
 
+// ── 친구 탭 ──
+function friendsView() {
+  const pending = state.pendingInvites;
+  const friends = state.friends;
+  const pendingSection = pending.length ? `
+    <section class="card">
+      <h3>💌 받은 초대</h3>
+      ${pending.map(inv => `
+        <div class="friend-item invite-item">
+          <span class="friend-code">코드 <b>${esc(inv.invite_code)}</b></span>
+          <div class="friend-actions">
+            <button class="btn primary sm" data-action="accept-invite" data-code="${esc(inv.invite_code)}">수락</button>
+            <button class="btn ghost sm" data-action="decline-invite" data-id="${inv.id}">거절</button>
+          </div>
+        </div>`).join('')}
+    </section>` : '';
+
+  const friendList = friends.length ? friends.map(f => `
+    <div class="friend-item">
+      <span class="friend-avatar">🌙</span>
+      <div class="friend-info">
+        <span class="friend-name">${esc(f.myNickname || f.friendId.slice(0, 8) + '…')}</span>
+        <span class="friend-id-small">${f.friendId.slice(0, 8)}…</span>
+      </div>
+      <button class="btn ghost sm" data-action="remove-friend" data-rowid="${f.id}">끊기</button>
+    </div>`).join('') : `<div class="empty">아직 친구가 없어요<br>초대 링크를 만들어 공유해봐요 🔗</div>`;
+
+  return `
+    <header class="top" style="padding-bottom:8px">
+      <span class="moon">${MOON}</span>
+      <div>
+        <div class="wordmark">친구</div>
+        <div class="greet" style="font-size:14px">같이 걸어요 🚶‍♀️🚶</div>
+      </div>
+      <button class="logout" data-action="logout">로그아웃</button>
+    </header>
+    ${pendingSection}
+    <section class="card">
+      <h3>🤝 내 친구 목록</h3>
+      <div class="friend-list">${friendList}</div>
+    </section>
+    <section class="card">
+      <h3>🔗 친구 초대하기</h3>
+      <div class="share-hint">초대 링크를 만들어 친구에게 보내요.<br>친구가 링크를 열면 바로 수락할 수 있어요!</div>
+      <button class="btn primary" data-action="gen-invite" style="margin-top:12px;width:100%">초대 링크 만들기</button>
+    </section>
+    <section class="card">
+      <h3>✉️ 초대 코드 입력</h3>
+      <div class="share-hint">받은 초대 코드를 입력해서 친구를 수락해요</div>
+      <div class="share-input-row" style="margin-top:10px">
+        <input id="invite-code-input" type="text" placeholder="8자리 코드 입력" maxlength="8" style="text-transform:uppercase;letter-spacing:2px">
+        <button class="btn primary" data-action="accept-code" style="white-space:nowrap;padding:6px 12px">수락</button>
+      </div>
+    </section>
+    <div class="foot">친구와 함께 걸어요 🌙</div>`;
+}
+
 // ── 탭바 ──
 let tabbarEl;
 function ensureTabbar() {
@@ -351,7 +411,12 @@ function ensureTabbar() {
       <button class="tab" data-tab="today">
         <svg viewBox="0 0 24 24" fill="none" stroke="#9A8C74" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11M4 12h11M4 17h7"/><path d="M18 6l1.6 1.6L22 5"/></svg>오늘</button>
       <button class="tab" data-tab="cal">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#9A8C74" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><line x1="4" y1="9.5" x2="20" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg>달력</button>`;
+        <svg viewBox="0 0 24 24" fill="none" stroke="#9A8C74" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><line x1="4" y1="9.5" x2="20" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg>달력</button>
+      <button class="tab" data-tab="friends">
+        <span class="tab-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#9A8C74" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M3 19c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="18" cy="8" r="2.5"/><path d="M21 19c0-2.3-1.5-4.2-3.5-4.8"/></svg>
+          <span class="tab-badge" id="tab-friend-badge" style="display:none"></span>
+        </span>친구</button>`;
     document.body.append(tabbarEl);
     tabbarEl.addEventListener('click', (e) => {
       const b = e.target.closest('[data-tab]'); if (!b) return;
@@ -361,6 +426,13 @@ function ensureTabbar() {
   }
   tabbarEl.style.display = 'flex';
   tabbarEl.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b.dataset.tab === state.tab));
+  // 대기 초대 배지
+  const badge = document.getElementById('tab-friend-badge');
+  if (badge) {
+    const cnt = state.pendingInvites.length;
+    badge.style.display = cnt ? 'inline-block' : 'none';
+    badge.textContent = cnt;
+  }
 }
 function hideTabbar() { if (tabbarEl) tabbarEl.style.display = 'none'; }
 
@@ -489,11 +561,18 @@ function openEventForm(editEv = null) {
       <label class="opt-row"><input id="e-todo" type="checkbox" ${todo ? 'checked' : ''}> 오늘 할 일이면 체크리스트에도 띄우기</label>
       ${isOwner && editEv ? `<div class="field share-field">
         <label>🔗 일정 공유</label>
-        <div class="share-input-row">
-          <input id="share-uid" type="text" placeholder="상대방 사용자 ID 붙여넣기" style="font-size:12px">
-          <button class="btn ghost" data-action="do-share" style="white-space:nowrap;padding:6px 10px">공유</button>
-        </div>
-        <div class="share-hint">상대방이 본인의 사용자 ID를 알려줘야 해요</div>
+        ${state.friends.length
+          ? `<div class="friend-share-list">
+              ${state.friends.map(f => {
+                const fname = f.myNickname || f.friendId.slice(0, 8) + '…';
+                return `<button class="friend-share-btn" data-action="toggle-share-friend" data-friendid="${f.friendId}" data-fname="${esc(fname)}">
+                  <span>🌙 ${esc(fname)}</span>
+                  <span class="share-check-icon">공유</span>
+                </button>`;
+              }).join('')}
+            </div>`
+          : `<div class="share-hint">아직 친구가 없어요. 친구 탭에서 먼저 친구를 추가해요! 🤝</div>`
+        }
         <div id="share-list" class="share-list"></div>
       </div>` : ''}
     </div>
@@ -508,11 +587,22 @@ async function loadShareList(eventId) {
   const list = $('#share-list'); if (!list) return;
   try {
     const uids = await fetchSharedUsers(eventId);
-    if (!uids.length) { list.innerHTML = `<div class="share-hint">아직 공유한 사람이 없어요</div>`; return; }
-    list.innerHTML = uids.map(uid => `<div class="share-item">
-      <span>${uid.slice(0, 8)}…</span>
-      <button class="btn ghost" data-action="do-unshare" data-uid="${uid}" data-evid="${eventId}" style="padding:4px 8px;font-size:12px">취소</button>
-    </div>`).join('');
+    if (!uids.length) { list.innerHTML = `<div class="share-hint" style="margin-top:6px">아직 공유한 친구가 없어요</div>`; return; }
+    list.innerHTML = uids.map(uid => {
+      const friend = state.friends.find(f => f.friendId === uid);
+      const label = friend?.myNickname || uid.slice(0, 8) + '…';
+      return `<div class="share-item">
+        <span>🌙 ${esc(label)}</span>
+        <button class="btn ghost" data-action="do-unshare" data-uid="${uid}" data-evid="${eventId}" style="padding:4px 8px;font-size:12px">공유 취소</button>
+      </div>`;
+    }).join('');
+    // 이미 공유된 친구 버튼 상태 업데이트
+    document.querySelectorAll('.friend-share-btn').forEach(btn => {
+      const fid = btn.dataset.friendid;
+      const shared = uids.includes(fid);
+      btn.classList.toggle('shared', shared);
+      btn.querySelector('.share-check-icon').textContent = shared ? '✓ 공유 중' : '공유';
+    });
   } catch (e) { list.innerHTML = ''; }
 }
 
@@ -592,6 +682,70 @@ async function doShare(eventId) {
     await loadShareList(eventId);
   } catch (e) { toast('공유에 실패했어요. ID를 확인해줘요'); }
 }
+
+// 친구 목록에서 공유 토글
+async function doToggleShareFriend(friendId, fname, btn) {
+  const isShared = btn.classList.contains('shared');
+  const list = $('#share-list');
+  const currentShared = [];
+  list?.querySelectorAll('[data-action="do-unshare"]').forEach(b => currentShared.push(b.dataset.uid));
+  try {
+    if (isShared) {
+      await unshareEvent(evId, friendId);
+      toast(`${fname}님과 공유를 취소했어요`);
+    } else {
+      await shareFriendEvent(evId, friendId);
+      toast(`${fname}님과 공유했어요 🔗`);
+    }
+    await loadShareList(evId);
+  } catch (e) { toast('공유 설정에 실패했어요'); }
+}
+
+// 초대 링크 생성
+async function genInvite() {
+  try {
+    const code = await getOrCreateInvite();
+    const url = `${location.origin}?invite=${code}`;
+    openSheet(`
+      <div class="sheet-title">🔗 친구 초대하기</div>
+      <div class="sheet-body">
+        <div class="share-hint">아래 링크를 친구에게 공유해요.<br>친구가 링크를 열면 자동으로 수락 화면이 떠요!</div>
+        <div class="uid-box" style="font-size:13px;word-break:break-all;margin-top:12px">${esc(url)}</div>
+        <div style="margin-top:8px;color:var(--ink-light);font-size:12px">초대 코드: <b style="letter-spacing:2px">${esc(code)}</b></div>
+        <button class="btn primary" id="copy-invite-btn" style="width:100%;margin-top:12px">링크 복사하기</button>
+      </div>
+      <div class="sheet-actions"><button class="btn ghost" data-action="close">닫기</button></div>`);
+    document.getElementById('copy-invite-btn')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(url).then(() => toast('복사했어요!')).catch(() => toast('복사 실패'));
+    });
+  } catch (e) { toast('초대 링크 생성에 실패했어요'); }
+}
+
+async function doAcceptInvite(code) {
+  try {
+    await acceptInvite(code.toUpperCase());
+    toast('친구가 됐어요 🤝');
+    await reloadFriends();
+    render();
+  } catch (e) { toast(e.message || '초대 수락에 실패했어요'); }
+}
+async function doDeclineInvite(rowId) {
+  try {
+    await removeFriend(rowId);
+    toast('초대를 거절했어요');
+    await reloadFriends();
+    render();
+  } catch (e) { toast('거절에 실패했어요'); }
+}
+async function doRemoveFriend(rowId) {
+  if (!confirm('이 친구를 목록에서 삭제할까요?')) return;
+  try {
+    await removeFriend(rowId);
+    toast('친구를 삭제했어요');
+    await reloadFriends();
+    render();
+  } catch (e) { toast('삭제에 실패했어요'); }
+}
 async function doUnshare(eventId, uid) {
   try { await unshareEvent(eventId, uid); toast('공유를 취소했어요'); await loadShareList(eventId); }
   catch (e) { toast('취소에 실패했어요'); }
@@ -629,6 +783,12 @@ $('#app').addEventListener('click', (e) => {
     case 'logout': signOut(); break;
     case 'kakao-login': signInKakao(); break;
     case 'my-id': openMyId(); break;
+    case 'gen-invite': genInvite(); break;
+    case 'accept-code': { const code = ($('#invite-code-input')?.value || '').trim().toUpperCase(); if (code) doAcceptInvite(code); else toast('코드를 입력해줘요'); break; }
+    case 'accept-invite': doAcceptInvite(t.dataset.code); break;
+    case 'decline-invite': doDeclineInvite(t.dataset.id); break;
+    case 'remove-friend': doRemoveFriend(t.dataset.rowid); break;
+    case 'toggle-share-friend': doToggleShareFriend(t.dataset.friendid, t.dataset.fname, t); break;
   }
 });
 
@@ -671,6 +831,13 @@ async function reloadEvents() {
   ]);
   state.events = me; state.todayEvents = te;
 }
+async function reloadFriends() {
+  const [friends, pending] = await Promise.all([
+    safe(fetchFriends()),
+    safe(fetchPendingInvites()),
+  ]);
+  state.friends = friends; state.pendingInvites = pending;
+}
 async function reload() {
   const n = new Date();
   const [apps, checkins, total, monthMap, me, te] = await Promise.all([
@@ -683,6 +850,7 @@ async function reload() {
   checkins.forEach((c) => { state.checked[c.app_id] = c.points; });
   state.total = total; state.monthMap = monthMap;
   state.events = me; state.todayEvents = te;
+  await reloadFriends();
   state.loading = false; render();
 }
 async function renderApp() {
@@ -727,19 +895,44 @@ async function boot() {
     state.user = session?.user ?? null;
   } catch (e) { state.user = null; }
 
-  if (state.user) {
-    // 기존 데이터 owner 백필
-    await backfillOwner(state.user.id).catch(() => {});
-    await renderApp();
-  } else renderLogin();
+  // URL에 초대 코드가 있으면 로그인 후 처리
+  const params = new URLSearchParams(location.search);
+  const pendingInviteCode = params.get('invite');
+  if (pendingInviteCode) {
+    history.replaceState({}, '', location.pathname); // URL 정리
+  }
 
-  supabase.auth.onAuthStateChange((event, session) => {
+  if (state.user) {
+    await backfillOwner(state.user.id).catch(() => {});
+    // 초대 코드 자동 처리
+    if (pendingInviteCode) {
+      try {
+        await acceptInvite(pendingInviteCode.toUpperCase());
+        toast('친구가 됐어요 🤝');
+      } catch (e) { toast(e.message || '초대 코드가 유효하지 않아요'); }
+    }
+    await renderApp();
+  } else {
+    if (pendingInviteCode) {
+      // 로그인 페이지에 안내 추가
+      sessionStorage.setItem('pendingInvite', pendingInviteCode);
+    }
+    renderLogin();
+  }
+
+  supabase.auth.onAuthStateChange(async (event, session) => {
     const u = session?.user ?? null;
     const changed = (u?.id) !== (state.user?.id);
     state.user = u;
     if (!u) renderLogin();
     else if (changed) {
       backfillOwner(u.id).catch(() => {});
+      // 로그인 후 대기 중인 초대 처리
+      const saved = sessionStorage.getItem('pendingInvite');
+      if (saved) {
+        sessionStorage.removeItem('pendingInvite');
+        try { await acceptInvite(saved.toUpperCase()); toast('친구가 됐어요 🤝'); } catch (e) { /* noop */ }
+      }
       renderApp();
     }
   });

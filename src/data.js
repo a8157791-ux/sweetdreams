@@ -121,11 +121,99 @@ export async function unshareEvent(eventId, targetUserId) {
   const { error } = await supabase.from('pedometer_event_shares').delete().eq('event_id', eventId).eq('shared_with', targetUserId);
   if (error) throw error;
 }
-// 카카오 닉네임으로 상대 검색 (auth.users는 직접 못 읽으므로 pedometer_apps owner로 찾기)
-export async function findUserByNickname(nickname) {
-  // profiles 테이블 없이: 상대방이 앱을 하나라도 등록했으면 owner_id로 찾을 수 있음
-  // 현실적으로는 상대 UID를 직접 입력받는 방식으로 구현
-  return null;
+// ── 친구 CRUD ──
+
+// 내 친구 목록 (accepted)
+export async function fetchFriends() {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from('pedometer_friends')
+    .select('*')
+    .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
+    .eq('status', 'accepted')
+    .order('accepted_at');
+  if (error) throw error;
+  // 상대방 id / 별명 정규화
+  return data.map(r => ({
+    ...r,
+    friendId: r.requester_id === user.id ? r.receiver_id : r.requester_id,
+    myNickname: r.nickname || null,
+    isMine: r.requester_id === user.id,
+  }));
+}
+
+// 대기 중인 받은 초대
+export async function fetchPendingInvites() {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from('pedometer_friends')
+    .select('*')
+    .eq('receiver_id', user.id)
+    .eq('status', 'pending');
+  if (error) throw error;
+  return data;
+}
+
+// 내 초대 링크 생성 (이미 pending이 있으면 재사용)
+export async function getOrCreateInvite() {
+  const { data: { user } } = await supabase.auth.getUser();
+  // 기존 pending 초대코드 중 receiver_id가 null인 것 재사용
+  const { data: existing } = await supabase
+    .from('pedometer_friends')
+    .select('invite_code')
+    .eq('requester_id', user.id)
+    .is('receiver_id', null)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (existing?.length) return existing[0].invite_code;
+  // 없으면 새로 생성
+  const { data, error } = await supabase
+    .from('pedometer_friends')
+    .insert({ requester_id: user.id })
+    .select('invite_code')
+    .single();
+  if (error) throw error;
+  return data.invite_code;
+}
+
+// 초대 수락 (코드로)
+export async function acceptInvite(code) {
+  const { data: { user } } = await supabase.auth.getUser();
+  // 코드 조회
+  const { data: inv, error: fe } = await supabase
+    .from('pedometer_friends')
+    .select('*')
+    .eq('invite_code', code)
+    .eq('status', 'pending')
+    .single();
+  if (fe || !inv) throw new Error('유효하지 않은 초대 코드예요');
+  if (inv.requester_id === user.id) throw new Error('내가 만든 초대 코드예요');
+  // 이미 친구인지 확인
+  const { data: dup } = await supabase
+    .from('pedometer_friends')
+    .select('id')
+    .or(`and(requester_id.eq.${user.id},receiver_id.eq.${inv.requester_id}),and(requester_id.eq.${inv.requester_id},receiver_id.eq.${user.id})`)
+    .eq('status', 'accepted');
+  if (dup?.length) throw new Error('이미 친구예요 🤝');
+  // 수락
+  const { error } = await supabase
+    .from('pedometer_friends')
+    .update({ receiver_id: user.id, status: 'accepted', accepted_at: new Date().toISOString() })
+    .eq('id', inv.id);
+  if (error) throw error;
+}
+
+// 친구 끊기
+export async function removeFriend(friendRowId) {
+  const { error } = await supabase.from('pedometer_friends').delete().eq('id', friendRowId);
+  if (error) throw error;
+}
+
+// 친구에게 일정 공유 (friendId = 상대방 uid)
+export async function shareFriendEvent(eventId, friendId) {
+  const { error } = await supabase.from('pedometer_event_shares').insert({ event_id: eventId, shared_with: friendId });
+  if (error) throw error;
 }
 
 // ── 프리셋 ──

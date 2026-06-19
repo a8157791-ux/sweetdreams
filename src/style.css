@@ -321,6 +321,34 @@ body{
 .uid-box{background:var(--card);border-radius:8px;padding:12px;font-size:11px;
          word-break:break-all;font-family:monospace;margin-top:8px;border:1.5px dashed #D4C9A8;}
 
+/* ── 친구 탭 ────────────────────────────── */
+.friend-list{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+.friend-item{display:flex;align-items:center;gap:10px;padding:10px 12px;
+  background:var(--bg);border-radius:10px;border:1.5px solid #E8E0CC;}
+.friend-item.invite-item{background:color-mix(in srgb,var(--chip-blush) 30%,var(--bg));}
+.friend-avatar{font-size:22px;flex-shrink:0;}
+.friend-info{flex:1;min-width:0;}
+.friend-name{display:block;font-size:14px;font-weight:700;}
+.friend-id-small{font-size:10px;color:var(--ink-soft);font-family:monospace;}
+.friend-code{font-size:12px;color:var(--ink-soft);flex:1;}
+.friend-actions{display:flex;gap:6px;}
+.btn.sm{padding:5px 10px;font-size:12px;}
+
+/* 친구 공유 버튼 */
+.friend-share-list{display:flex;flex-direction:column;gap:6px;margin-top:8px;}
+.friend-share-btn{display:flex;align-items:center;justify-content:space-between;
+  width:100%;padding:10px 14px;background:var(--bg);border:1.5px solid #E8E0CC;
+  border-radius:10px;font-family:var(--font-hand);font-size:14px;cursor:pointer;text-align:left;}
+.friend-share-btn.shared{background:color-mix(in srgb,var(--green) 15%,var(--bg));border-color:var(--green);}
+.share-check-icon{font-size:12px;color:var(--ink-soft);background:var(--card);
+  border-radius:12px;padding:3px 9px;border:1.5px solid #D4C9A8;}
+.friend-share-btn.shared .share-check-icon{color:var(--green);border-color:var(--green);background:color-mix(in srgb,var(--green) 12%,var(--bg));}
+
+/* 탭 배지 */
+.tab-icon-wrap{position:relative;display:inline-flex;justify-content:center;}
+.tab-badge{position:absolute;top:-4px;right:-8px;background:#E05A5A;color:#fff;
+  border-radius:8px;font-size:9px;font-weight:700;padding:1px 5px;min-width:14px;text-align:center;}
+
 /* ── 모션 줄이기 ────────────────────────── */
 @media (prefers-reduced-motion: reduce){
   *{animation:none !important;transition:none !important;}
