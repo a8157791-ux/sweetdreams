@@ -334,6 +334,10 @@ body{
 .friend-actions{display:flex;gap:6px;}
 .btn.sm{padding:5px 10px;font-size:12px;}
 
+/* 친구 탭 카드 공통 패딩 */
+.friends-card{padding:18px 18px 16px;margin-top:14px;}
+.friends-card h3{font-family:var(--font-hand);font-size:19px;font-weight:700;margin-bottom:4px;}
+
 /* 친구 공유 버튼 */
 .friend-share-list{display:flex;flex-direction:column;gap:6px;margin-top:8px;}
 .friend-share-btn{display:flex;align-items:center;justify-content:space-between;

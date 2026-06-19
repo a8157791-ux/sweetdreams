@@ -375,22 +375,23 @@ function friendsView() {
     <header class="top" style="padding-bottom:8px">
       <span class="moon">${MOON}</span>
       <div>
-        <div class="wordmark">친구</div>
-        <div class="greet" style="font-size:14px">같이 걸어요 🚶‍♀️🚶</div>
+        <div class="wordmark">매일 밤 잠들기 전 나를 생각해</div>
+        <div class="greet">친구<span class="em"> 🌙</span></div>
+        <div class="date">같이 체크해요</div>
       </div>
       <button class="logout" data-action="logout">로그아웃</button>
     </header>
     ${pendingSection}
-    <section class="card">
+    <section class="card friends-card">
       <h3>🤝 내 친구 목록</h3>
       <div class="friend-list">${friendList}</div>
     </section>
-    <section class="card">
+    <section class="card friends-card">
       <h3>🔗 친구 초대하기</h3>
       <div class="share-hint">초대 링크를 만들어 친구에게 보내요.<br>친구가 링크를 열면 바로 수락할 수 있어요!</div>
       <button class="btn primary" data-action="gen-invite" style="margin-top:12px;width:100%">초대 링크 만들기</button>
     </section>
-    <section class="card">
+    <section class="card friends-card">
       <h3>✉️ 초대 코드 입력</h3>
       <div class="share-hint">받은 초대 코드를 입력해서 친구를 수락해요</div>
       <div class="share-input-row" style="margin-top:10px">
