@@ -624,8 +624,15 @@ function renderLogin() {
   </div></div>`;
 }
 async function signInKakao() {
-  try { await supabase.auth.signInWithOAuth({ provider: 'kakao', options: { redirectTo: window.location.origin } }); }
-  catch (e) { toast('로그인을 시작하지 못했어요'); }
+  try {
+    await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: {
+        redirectTo: 'https://sweetdreams-zzz.vercel.app',
+        scopes: 'profile_nickname profile_image',
+      }
+    });
+  } catch (e) { toast('로그인을 시작하지 못했어요'); }
 }
 async function signOut() {
   try { await supabase.auth.signOut(); } catch (e) { /* noop */ }
