@@ -541,14 +541,33 @@ function openForm(editApp = null) {
 }
 
 // 일정 추가/수정 폼
-let evId = null, evColor = '--chip-mint';
+let evId = null, evColor = '--chip-mint', evSharePicks = new Set();
 function openEventForm(editEv = null) {
   evId = editEv?.id ?? null;
   evColor = editEv?.color || '--chip-mint';
+  evSharePicks = new Set(); // 새 일정일 때 선택 초기화
   const date = editEv?.event_date || state.selDate || todayStr();
   const time = editEv?.start_time ? editEv.start_time.slice(0, 5) : '';
   const todo = editEv ? editEv.is_todo : true;
   const isOwner = !editEv || !editEv.owner_id || editEv.owner_id === state.user?.id;
+
+  const friendShareUI = isOwner ? `<div class="field share-field">
+    <label>🔗 공유할 친구</label>
+    ${state.friends.length
+      ? `<div class="friend-share-list">
+          ${state.friends.map(f => {
+            const fname = f.myNickname || f.friendId.slice(0, 8) + '…';
+            return `<button class="friend-share-btn" data-action="toggle-share-friend" data-friendid="${f.friendId}" data-fname="${esc(fname)}">
+              <span>🌙 ${esc(fname)}</span>
+              <span class="share-check-icon">공유</span>
+            </button>`;
+          }).join('')}
+        </div>`
+      : `<div class="share-hint">아직 친구가 없어요. 친구 탭에서 먼저 친구를 추가해요! 🤝</div>`
+    }
+    <div id="share-list" class="share-list"></div>
+  </div>` : '';
+
   openSheet(`
     <div class="sheet-title">${editEv ? '일정 수정' : '일정 추가'}</div>
     <div class="sheet-body">
@@ -560,22 +579,7 @@ function openEventForm(editEv = null) {
       <div class="field"><label>색</label>
         <div class="color-pick">${COLORS.map((c) => `<button class="color-dot ${c === evColor ? 'on' : ''}" data-action="ev-color" data-c="${c}" style="background:var(${c})" aria-label="색"></button>`).join('')}</div></div>
       <label class="opt-row"><input id="e-todo" type="checkbox" ${todo ? 'checked' : ''}> 오늘 할 일이면 체크리스트에도 띄우기</label>
-      ${isOwner && editEv ? `<div class="field share-field">
-        <label>🔗 일정 공유</label>
-        ${state.friends.length
-          ? `<div class="friend-share-list">
-              ${state.friends.map(f => {
-                const fname = f.myNickname || f.friendId.slice(0, 8) + '…';
-                return `<button class="friend-share-btn" data-action="toggle-share-friend" data-friendid="${f.friendId}" data-fname="${esc(fname)}">
-                  <span>🌙 ${esc(fname)}</span>
-                  <span class="share-check-icon">공유</span>
-                </button>`;
-              }).join('')}
-            </div>`
-          : `<div class="share-hint">아직 친구가 없어요. 친구 탭에서 먼저 친구를 추가해요! 🤝</div>`
-        }
-        <div id="share-list" class="share-list"></div>
-      </div>` : ''}
+      ${friendShareUI}
     </div>
     <div class="sheet-actions">
       ${editEv ? `<button class="btn danger" data-action="del-event">삭제</button>` : `<button class="btn ghost" data-action="close">닫기</button>`}
@@ -660,8 +664,17 @@ async function saveEvent() {
   const start_time = t ? `${t}:00` : null;
   const is_todo = $('#e-todo').checked;
   try {
-    if (evId) { await updateEvent(evId, { title, event_date, start_time, is_todo, color: evColor }); toast('일정을 수정했어요'); }
-    else { await addEvent({ title, event_date, start_time, is_todo, color: evColor }); toast('일정을 추가했어요'); }
+    if (evId) {
+      await updateEvent(evId, { title, event_date, start_time, is_todo, color: evColor });
+      toast('일정을 수정했어요');
+    } else {
+      const newId = await addEvent({ title, event_date, start_time, is_todo, color: evColor });
+      // 선택된 친구에게 공유
+      if (evSharePicks.size && newId) {
+        await Promise.all([...evSharePicks].map(fid => shareFriendEvent(newId, fid)));
+      }
+      toast(evSharePicks.size ? `일정을 추가하고 ${evSharePicks.size}명과 공유했어요 🔗` : '일정을 추가했어요');
+    }
     if (event_date.startsWith(`${state.calYear}-${pad(state.calMonth + 1)}`)) state.selDate = event_date;
     closeSheet(); await reloadEvents(); render();
   } catch (e) { toast('저장에 실패했어요'); }
@@ -686,10 +699,16 @@ async function doShare(eventId) {
 
 // 친구 목록에서 공유 토글
 async function doToggleShareFriend(friendId, fname, btn) {
+  // 새 일정(evId 없음): 로컬 picks만 업데이트, 저장 시 처리
+  if (!evId) {
+    const isOn = evSharePicks.has(friendId);
+    isOn ? evSharePicks.delete(friendId) : evSharePicks.add(friendId);
+    btn.classList.toggle('shared', !isOn);
+    btn.querySelector('.share-check-icon').textContent = !isOn ? '✓ 공유 예정' : '공유';
+    return;
+  }
+  // 기존 일정 수정: 즉시 DB 반영
   const isShared = btn.classList.contains('shared');
-  const list = $('#share-list');
-  const currentShared = [];
-  list?.querySelectorAll('[data-action="do-unshare"]').forEach(b => currentShared.push(b.dataset.uid));
   try {
     if (isShared) {
       await unshareEvent(evId, friendId);

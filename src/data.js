@@ -87,8 +87,9 @@ export async function fetchTodayTodoEvents() {
 }
 export async function addEvent(row) {
   const { data: { user } } = await supabase.auth.getUser();
-  const { error } = await supabase.from('pedometer_events').insert({ ...row, owner_id: user?.id });
+  const { data, error } = await supabase.from('pedometer_events').insert({ ...row, owner_id: user?.id }).select('id').single();
   if (error) throw error;
+  return data.id; // 공유 처리를 위해 id 반환
 }
 export async function updateEvent(id, fields) {
   const { error } = await supabase.from('pedometer_events').update(fields).eq('id', id);
