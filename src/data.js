@@ -52,8 +52,10 @@ export async function fetchTotalPoints() {
 }
 export async function fetchMonthCheckins(year, month) {
   const start = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-  const end = `${year}-${String(month + 1).padStart(2, '0')}-31`;
-  const { data, error } = await supabase.from('pedometer_checkins').select('checkin_date').gte('checkin_date', start).lte('checkin_date', end);
+  const ny = month === 11 ? year + 1 : year;
+  const nm = month === 11 ? 1 : month + 2;
+  const end = `${ny}-${String(nm).padStart(2, '0')}-01`;
+  const { data, error } = await supabase.from('pedometer_checkins').select('checkin_date').gte('checkin_date', start).lt('checkin_date', end);
   if (error) throw error;
   return Object.fromEntries(data.map(r => [r.checkin_date, true]));
 }
@@ -71,8 +73,10 @@ export async function uncheckIn(appId) {
 export async function fetchEventsMonth(year, month) {
   const pad = n => String(n).padStart(2, '0');
   const start = `${year}-${pad(month + 1)}-01`;
-  const end = `${year}-${pad(month + 1)}-31`;
-  const { data, error } = await supabase.from('pedometer_events').select('*').gte('event_date', start).lte('event_date', end).order('start_time');
+  const ny = month === 11 ? year + 1 : year;
+  const nm = month === 11 ? 1 : month + 2;
+  const end = `${ny}-${pad(nm)}-01`;
+  const { data, error } = await supabase.from('pedometer_events').select('*').gte('event_date', start).lt('event_date', end).order('start_time');
   if (error) throw error;
   return data;
 }
