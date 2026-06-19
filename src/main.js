@@ -80,6 +80,59 @@ function userName() {
 }
 function isEventDone(e) { return !!e.done_by; }
 
+// ── 시간대별 랜덤 응원 문구 ──
+function greetMsg() {
+  const h = new Date().getHours();
+  const name = esc(userName());
+
+  const msgs = h < 6
+    ? [ // 새벽
+        [`${name}님,`, `이 시간에도 깨어있군요 🌙`],
+        [`${name}님,`, `새벽을 지키고 있네요 ✨`],
+        [`${name}님,`, `곧 날이 밝아올 거예요 🌅`],
+      ]
+    : h < 11
+    ? [ // 오전
+        [`${name}님,`, `오늘 하루도 힘차게! 💪`],
+        [`${name}님,`, `좋은 아침이에요 ☀️`],
+        [`${name}님,`, `오늘도 잘 걸어봐요 👟`],
+        [`${name}님,`, `상쾌한 아침이에요 🌤️`],
+      ]
+    : h < 14
+    ? [ // 점심
+        [`${name}님,`, `밥은 먹었어요? 🍱`],
+        [`${name}님,`, `점심 산책 어때요? 🚶`],
+        [`${name}님,`, `오늘 절반 왔어요! 🌞`],
+        [`${name}님,`, `잘 걷고 있어요? 👣`],
+      ]
+    : h < 18
+    ? [ // 오후
+        [`${name}님,`, `오후도 파이팅! 🔥`],
+        [`${name}님,`, `조금만 더 걸어봐요 🏃`],
+        [`${name}님,`, `오늘 목표 달성 중! 💚`],
+        [`${name}님,`, `잘 걸었어요? 👟`],
+      ]
+    : h < 21
+    ? [ // 저녁
+        [`${name}님,`, `오늘 하루 수고했어요 🌙`],
+        [`${name}님,`, `저녁 산책 다녀왔어요? 🌆`],
+        [`${name}님,`, `잘 걸었어요? ✨`],
+        [`${name}님,`, `오늘도 고생했어요 💛`],
+      ]
+    : [ // 밤
+        [`${name}님,`, `오늘도 잘 걸었나요? 🌙`],
+        [`${name}님,`, `푹 쉬어요, 내일 또 걸어요 🌛`],
+        [`${name}님,`, `오늘 하루도 최고였어요 ⭐`],
+        [`${name}님,`, `잘 자요, 내일 또 봐요 🌙`],
+      ];
+
+  // 날짜 기반 랜덤 (매일 다르게, 새로고침마다 안 바뀌게)
+  const today = new Date();
+  const seed = today.getFullYear() * 10000 + (today.getMonth()+1) * 100 + today.getDate();
+  const idx = seed % msgs.length;
+  return msgs[idx];
+}
+
 const MOON = `<svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
   <path d="M30 8 C18 8 11 17 11 27 C11 36 19 41 27 39 C20 36 17 30 17 24 C17 17 22 11 30 8 Z" fill="#F4D98A" stroke="#3F362A" stroke-width="2.4" stroke-linejoin="round"/>
   <circle cx="22" cy="24" r="1.4" fill="#3F362A"/><circle cx="27" cy="24" r="1.4" fill="#3F362A"/>
@@ -108,7 +161,7 @@ function todayView() {
       <span class="moon">${MOON}</span>
       <div>
         <div class="wordmark">매일 밤 잠들기 전 나를 생각해</div>
-        <div class="greet">${esc(userName())}님,<br><span class="em">잘 걸었어요?</span></div>
+        <div class="greet">${(([a,b])=>`${a}<br><span class="em">${b}</span>`)(greetMsg())}</div>
         <div class="date">${dateLabelToday()} 밤</div>
       </div>
       <button class="logout" data-action="logout">로그아웃</button>
