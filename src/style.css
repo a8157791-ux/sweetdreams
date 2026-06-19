@@ -324,3 +324,12 @@ body{
 @media (prefers-reduced-motion: reduce){
   *{animation:none !important;transition:none !important;}
 }
+
+
+.share-field { margin-top: 16px; }
+.share-input-row { display: flex; gap: 8px; margin-top: 6px; }
+.share-input-row input { flex: 1; min-width: 0; }
+.share-hint { font-size: 11px; color: #9A8C74; margin-top: 4px; }
+.share-list { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.share-item { display: flex; align-items: center; justify-content: space-between; background: #FFF8E8; border-radius: 8px; padding: 6px 10px; font-size: 12px; }
+.uid-box { background: #FFF8E8; border-radius: 8px; padding: 12px; font-size: 11px; word-break: break-all; font-family: monospace; margin-top: 8px; border: 1.5px dashed #D4C9A8; }

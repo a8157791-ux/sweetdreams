@@ -1,37 +1,30 @@
 import './style.css';
 import {
   fetchApps, fetchTodayCheckins, fetchTotalPoints, fetchMonthCheckins,
-  addApp, updateApp, deleteApp, addPresetApps,
+  addApp, updateApp, deleteApp, addPresetApps, backfillOwner,
   checkIn, uncheckIn,
   fetchEventsMonth, fetchTodayTodoEvents, addEvent, updateEvent, deleteEvent, setEventDone,
+  fetchSharedUsers, shareEvent, unshareEvent,
   todayStr, todayDow, showsToday, PRESETS,
 } from './data.js';
 import { supabase } from './supabaseClient.js';
 
-// ────────────────────────────────────────────
-// 상태
-// ────────────────────────────────────────────
 const now0 = new Date();
 const state = {
   apps: [], checked: {}, total: 0, monthMap: {},
   selDow: todayDow(), loading: true,
   user: null,
-  tab: 'today',                 // 'today' | 'cal'
-  todayEvents: [],              // 오늘 + is_todo 일정 (체크리스트용)
-  events: [],                   // calYear/calMonth 의 일정
+  tab: 'today',
+  todayEvents: [],
+  events: [],
   calYear: now0.getFullYear(),
   calMonth: now0.getMonth(),
   selDate: todayStr(),
 };
 
 const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'];
-
-// 일정 데이터 로딩 실패해도(테이블 아직 없을 때) 앱 전체가 죽지 않게
 const safe = (p) => p.catch(() => []);
 
-// ────────────────────────────────────────────
-// 아이콘 / 색상
-// ────────────────────────────────────────────
 const ICON = {
   walk: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3F362A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4c1.4 0 2.4 1.2 2.4 3 0 2.2-1 4-1 6 0 1.4.6 2 .6 3.2 0 1-.7 1.8-1.7 1.8s-1.7-.8-1.7-2c0-2 .4-3.4.4-5.4C7 8 6.4 4 8 4Z" fill="#F6D8AE"/><circle cx="15.5" cy="6.5" r="2.6" fill="#CFE6C6"/></svg>`,
   sun: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3F362A" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="4.2" fill="#F4D98A"/><path d="M12 4.5v2M5.5 7l1.4 1.4M18.5 7l-1.4 1.4M4 14h2M18 14h2"/></svg>`,
@@ -57,9 +50,6 @@ function chipVar(c) {
 }
 const COLORS = ['--chip-mint', '--chip-peach', '--chip-blush', '--chip-sky', '--chip-lilac'];
 
-// ────────────────────────────────────────────
-// 헬퍼
-// ────────────────────────────────────────────
 const $ = (s) => document.querySelector(s);
 const fmt = (n) => n.toLocaleString('ko-KR');
 const pad = (n) => String(n).padStart(2, '0');
@@ -88,10 +78,8 @@ function userName() {
   const m = state.user?.user_metadata || {};
   return m.name || m.full_name || m.user_name || m.nickname || m.preferred_username || '나';
 }
+function isEventDone(e) { return !!e.done_by; }
 
-// ────────────────────────────────────────────
-// SVG 조각
-// ────────────────────────────────────────────
 const MOON = `<svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
   <path d="M30 8 C18 8 11 17 11 27 C11 36 19 41 27 39 C20 36 17 30 17 24 C17 17 22 11 30 8 Z" fill="#F4D98A" stroke="#3F362A" stroke-width="2.4" stroke-linejoin="round"/>
   <circle cx="22" cy="24" r="1.4" fill="#3F362A"/><circle cx="27" cy="24" r="1.4" fill="#3F362A"/>
@@ -101,9 +89,7 @@ const MOON = `<svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true"
 const TICK = `<svg class="tick" viewBox="0 0 24 24"><path d="M5 13 l4 4 L19 6"/></svg>`;
 const STAR = `<svg class="star" width="16" height="16" viewBox="0 0 16 16"><path d="M8 1l1.8 3.8L14 5.4l-3 3 .8 4.1L8 10.6 4.2 12.5 5 8.4 2 5.4l4.2-.6Z" fill="#E8A93C" stroke="#3F362A" stroke-width="1.2" stroke-linejoin="round"/></svg>`;
 
-// ────────────────────────────────────────────
-// 렌더 — 전체
-// ────────────────────────────────────────────
+// ── 렌더 ──
 function render() {
   const app = $('#app');
   if (state.loading) {
@@ -115,7 +101,6 @@ function render() {
   if (state.tab === 'today') updateTally();
 }
 
-// ── 오늘 탭 ──
 function todayView() {
   const isToday = state.selDow === todayDow();
   return `
@@ -128,9 +113,7 @@ function todayView() {
       </div>
       <button class="logout" data-action="logout">로그아웃</button>
     </header>
-
     <div class="week">${weekHTML()}</div>
-
     <section class="card tally">
       <div class="tally-row">
         <div><div class="label">오늘 적립</div><div class="today" id="todayPts"></div></div>
@@ -141,13 +124,11 @@ function todayView() {
         <div class="cap"><span class="hand" id="progText"></span><span id="goalText"></span></div>
       </div>
     </section>
-
     <section class="card month">
       <h3>🌙 이번 달 잠들기 전 기록</h3>
       <div class="sub">매일 밤 체크하면 동그라미가 칠해져요</div>
       <div class="dots" id="dots">${dotsHTML()}</div>
     </section>
-
     <div class="sec">
       <h2>${isToday ? '오늘의 체크리스트' : `${WEEKDAYS[state.selDow]}요일 미리보기`}</h2>
       <span class="count" id="secCount"></span>
@@ -155,7 +136,6 @@ function todayView() {
     ${!isToday ? `<div class="dow-hint" style="margin:-4px 4px 10px">👀 오늘이 아니라 미리보기예요 — 체크는 오늘만 돼요</div>` : ''}
     <div class="list" id="list">${listHTML()}</div>
     <div class="done-note" id="doneNote">오늘 할 일 끝 — 푹 자요 🌙</div>
-
     <div class="actions">
       <button class="btn primary" data-action="open-add">＋ 앱 추가하기</button>
       <button class="btn" data-action="open-preset">내 앱 불러오기</button>
@@ -181,11 +161,14 @@ function listHTML() {
     return `<div class="empty">아직 오늘 할 일이 없어요.<br>앱을 추가하거나 달력에서 일정을 등록해보세요!</div>`;
   }
   let h = evs.map((e) => {
+    const done = isEventDone(e);
     const time = e.start_time ? `<span class="chip">${fmtTime(e.start_time)}</span>` : '';
-    return `<div class="item event ${e.done ? 'done' : ''}" data-action="toggle-event" data-id="${e.id}">
+    const isShared = e.owner_id && e.owner_id !== state.user?.id;
+    const sharedBadge = isShared ? `<span class="chip" style="background:var(--chip-lilac)">🔗 공유됨</span>` : '';
+    return `<div class="item event ${done ? 'done' : ''}" data-action="toggle-event" data-id="${e.id}">
       <span class="ic">${ICON.cal}</span>
       <span class="meta"><span class="name">${esc(e.title)}</span>
-        <span class="lower"><span class="chip" style="background:var(${e.color || '--chip-blush'})">📅 오늘 일정</span>${time}</span></span>
+        <span class="lower"><span class="chip" style="background:var(${e.color || '--chip-blush'})">📅 오늘 일정</span>${sharedBadge}${time}</span></span>
       <button class="more" data-action="edit-event" data-id="${e.id}" aria-label="수정">⋯</button>
       <span class="check">${TICK}${STAR}</span></div>`;
   }).join('');
@@ -226,9 +209,8 @@ function updateTally() {
   const appsDone = visApps.filter((a) => a.id in state.checked).length;
   const evs = isToday ? state.todayEvents : [];
   const total = visApps.length + evs.length;
-  const done = appsDone + evs.filter((e) => e.done).length;
+  const done = appsDone + evs.filter((e) => isEventDone(e)).length;
   const pts = todayVisible().reduce((s, a) => s + (a.id in state.checked ? a.points : 0), 0);
-
   const set = (id, html) => { const el = $('#' + id); if (el) el.innerHTML = html; };
   set('todayPts', `<small>+</small>${fmt(pts)}<small>P</small>`);
   set('sumPts', `${fmt(state.total)}P`);
@@ -259,7 +241,7 @@ function calView() {
 
 function calCellsHTML() {
   const y = state.calYear, m = state.calMonth;
-  const first = (new Date(y, m, 1).getDay() + 6) % 7;   // 0=월
+  const first = (new Date(y, m, 1).getDay() + 6) % 7;
   const days = new Date(y, m + 1, 0).getDate();
   const n = new Date();
   const thisMonth = (n.getFullYear() === y && n.getMonth() === m);
@@ -286,24 +268,27 @@ function dayPanelHTML() {
   if (!evs.length) {
     h += `<div class="empty">이 날 일정이 없어요.<br>아래 ＋ 버튼으로 추가해보세요!</div>`;
   } else {
-    h += evs.map((e) => `
-      <div class="ev ${e.done ? 'done' : ''}" data-action="toggle-event-cal" data-id="${e.id}">
-        <span class="bul">${e.done ? '<svg width="10" height="10" viewBox="0 0 24 24"><path d="M5 13l4 4L19 6" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}</span>
+    h += evs.map((e) => {
+      const done = isEventDone(e);
+      const isShared = e.owner_id && e.owner_id !== state.user?.id;
+      return `
+      <div class="ev ${done ? 'done' : ''}" data-action="toggle-event-cal" data-id="${e.id}">
+        <span class="bul">${done ? '<svg width="10" height="10" viewBox="0 0 24 24"><path d="M5 13l4 4L19 6" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}</span>
         <span class="ebody"><span class="et">${esc(e.title)}</span>
           <span class="es">
             <span>${e.start_time ? fmtTime(e.start_time) : '하루 종일'}</span>
             ${e.is_todo ? `<span class="tag" style="background:var(--chip-peach)">✓ 체크리스트</span>` : ''}
+            ${isShared ? `<span class="tag" style="background:var(--chip-lilac)">🔗 공유됨</span>` : ''}
           </span></span>
         <button class="eedit" data-action="edit-event" data-id="${e.id}" aria-label="수정">⋯</button>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
   return h;
 }
 function rerenderDayPanel() { const p = $('#daypanel'); if (p) p.innerHTML = dayPanelHTML(); }
 
-// ────────────────────────────────────────────
-// 바텀 탭바
-// ────────────────────────────────────────────
+// ── 탭바 ──
 let tabbarEl;
 function ensureTabbar() {
   if (!tabbarEl) {
@@ -326,9 +311,7 @@ function ensureTabbar() {
 }
 function hideTabbar() { if (tabbarEl) tabbarEl.style.display = 'none'; }
 
-// ────────────────────────────────────────────
-// 체크 토글 — 앱
-// ────────────────────────────────────────────
+// ── 체크 토글 — 앱 ──
 async function toggle(id, el) {
   if (state.selDow !== todayDow()) { toast('오늘 날짜에만 체크할 수 있어요'); return; }
   const app = state.apps.find((a) => a.id === id); if (!app) return;
@@ -341,7 +324,7 @@ async function toggle(id, el) {
     if (was) { state.checked[id] = app.points; state.total += app.points; }
     else { delete state.checked[id]; state.total -= app.points; }
     el.classList.toggle('done', was); refreshMonthToday(); updateTally();
-    toast('저장에 실패했어요. 잠시 후 다시 시도해줘요');
+    toast('저장에 실패했어요');
   }
 }
 function refreshMonthToday() {
@@ -350,31 +333,28 @@ function refreshMonthToday() {
   const dots = $('#dots'); if (dots) dots.innerHTML = dotsHTML();
 }
 
-// ────────────────────────────────────────────
-// 체크 토글 — 일정
-// ────────────────────────────────────────────
+// ── 체크 토글 — 일정 ──
 function syncEventDone(id, val) {
-  const a = state.events.find((e) => e.id === id); if (a) a.done = val;
-  const b = state.todayEvents.find((e) => e.id === id); if (b) b.done = val;
+  const uid = val ? state.user?.id : null;
+  const a = state.events.find((e) => e.id === id); if (a) a.done_by = uid;
+  const b = state.todayEvents.find((e) => e.id === id); if (b) b.done_by = uid;
 }
 async function toggleEventChecklist(id, el) {
   const ev = state.todayEvents.find((e) => e.id === id); if (!ev) return;
-  const next = !ev.done;
+  const next = !isEventDone(ev);
   syncEventDone(id, next); el.classList.toggle('done', next); updateTally();
   try { await setEventDone(id, next); }
   catch (e) { syncEventDone(id, !next); el.classList.toggle('done', !next); updateTally(); toast('저장에 실패했어요'); }
 }
 async function toggleEventCal(id) {
   const ev = state.events.find((e) => e.id === id); if (!ev) return;
-  const next = !ev.done;
+  const next = !isEventDone(ev);
   syncEventDone(id, next); rerenderDayPanel();
   try { await setEventDone(id, next); }
   catch (e) { syncEventDone(id, !next); rerenderDayPanel(); toast('저장에 실패했어요'); }
 }
 
-// ────────────────────────────────────────────
-// 바텀시트
-// ────────────────────────────────────────────
+// ── 바텀시트 ──
 let sheetEl, backdropEl;
 function ensureSheet() {
   if (sheetEl) return;
@@ -390,7 +370,7 @@ function openSheet(html) {
 }
 function closeSheet() { if (sheetEl) { backdropEl.classList.remove('show'); sheetEl.classList.remove('show'); } }
 
-// 프리셋 시트
+// 프리셋
 let presetPicks = new Set();
 function openPreset() {
   presetPicks = new Set();
@@ -442,6 +422,7 @@ function openEventForm(editEv = null) {
   const date = editEv?.event_date || state.selDate || todayStr();
   const time = editEv?.start_time ? editEv.start_time.slice(0, 5) : '';
   const todo = editEv ? editEv.is_todo : true;
+  const isOwner = !editEv || !editEv.owner_id || editEv.owner_id === state.user?.id;
   openSheet(`
     <div class="sheet-title">${editEv ? '일정 수정' : '일정 추가'}</div>
     <div class="sheet-body">
@@ -453,16 +434,49 @@ function openEventForm(editEv = null) {
       <div class="field"><label>색</label>
         <div class="color-pick">${COLORS.map((c) => `<button class="color-dot ${c === evColor ? 'on' : ''}" data-action="ev-color" data-c="${c}" style="background:var(${c})" aria-label="색"></button>`).join('')}</div></div>
       <label class="opt-row"><input id="e-todo" type="checkbox" ${todo ? 'checked' : ''}> 오늘 할 일이면 체크리스트에도 띄우기</label>
+      ${isOwner && editEv ? `<div class="field share-field">
+        <label>🔗 일정 공유</label>
+        <div class="share-input-row">
+          <input id="share-uid" type="text" placeholder="상대방 사용자 ID 붙여넣기" style="font-size:12px">
+          <button class="btn ghost" data-action="do-share" style="white-space:nowrap;padding:6px 10px">공유</button>
+        </div>
+        <div class="share-hint">상대방이 본인의 사용자 ID를 알려줘야 해요</div>
+        <div id="share-list" class="share-list"></div>
+      </div>` : ''}
     </div>
     <div class="sheet-actions">
       ${editEv ? `<button class="btn danger" data-action="del-event">삭제</button>` : `<button class="btn ghost" data-action="close">닫기</button>`}
       <button class="btn primary" data-action="save-event">저장</button>
     </div>`);
+  if (isOwner && editEv) loadShareList(editEv.id);
 }
 
-// ────────────────────────────────────────────
-// 액션 — 앱
-// ────────────────────────────────────────────
+async function loadShareList(eventId) {
+  const list = $('#share-list'); if (!list) return;
+  try {
+    const uids = await fetchSharedUsers(eventId);
+    if (!uids.length) { list.innerHTML = `<div class="share-hint">아직 공유한 사람이 없어요</div>`; return; }
+    list.innerHTML = uids.map(uid => `<div class="share-item">
+      <span>${uid.slice(0, 8)}…</span>
+      <button class="btn ghost" data-action="do-unshare" data-uid="${uid}" data-evid="${eventId}" style="padding:4px 8px;font-size:12px">취소</button>
+    </div>`).join('');
+  } catch (e) { list.innerHTML = ''; }
+}
+
+// ── 내 UID 보기 ──
+function openMyId() {
+  const uid = state.user?.id || '';
+  openSheet(`
+    <div class="sheet-title">내 사용자 ID</div>
+    <div class="sheet-body">
+      <div class="share-hint">아래 ID를 상대방에게 알려주면 일정을 공유받을 수 있어요</div>
+      <div class="uid-box" id="uid-box">${esc(uid)}</div>
+      <button class="btn primary" data-action="copy-uid" style="width:100%;margin-top:12px">복사하기</button>
+    </div>
+    <div class="sheet-actions"><button class="btn ghost" data-action="close">닫기</button></div>`);
+}
+
+// ── 액션 — 앱 ──
 async function presetAdd() {
   if (!presetPicks.size) { closeSheet(); return; }
   const maxSort = state.apps.reduce((m, a) => Math.max(m, a.sort_order || 0), 0);
@@ -487,14 +501,12 @@ async function saveForm() {
 }
 async function removeApp() {
   if (!formId) return;
-  if (!confirm('이 항목을 삭제할까요? 체크 기록도 함께 지워져요.')) return;
+  if (!confirm('이 항목을 삭제할까요?')) return;
   try { await deleteApp(formId); delete state.checked[formId]; closeSheet(); await reload(); toast('삭제했어요'); }
   catch (e) { toast('삭제에 실패했어요'); }
 }
 
-// ────────────────────────────────────────────
-// 액션 — 일정
-// ────────────────────────────────────────────
+// ── 액션 — 일정 ──
 async function saveEvent() {
   const title = $('#e-title').value.trim();
   if (!title) { toast('일정 이름을 적어줘요'); return; }
@@ -508,7 +520,7 @@ async function saveEvent() {
     else { await addEvent({ title, event_date, start_time, is_todo, color: evColor }); toast('일정을 추가했어요'); }
     if (event_date.startsWith(`${state.calYear}-${pad(state.calMonth + 1)}`)) state.selDate = event_date;
     closeSheet(); await reloadEvents(); render();
-  } catch (e) { toast('저장에 실패했어요. 일정 테이블(SQL) 실행을 확인해줘요'); }
+  } catch (e) { toast('저장에 실패했어요'); }
 }
 async function removeEvent() {
   if (!evId) return;
@@ -516,10 +528,23 @@ async function removeEvent() {
   try { await deleteEvent(evId); closeSheet(); await reloadEvents(); render(); toast('일정을 삭제했어요'); }
   catch (e) { toast('삭제에 실패했어요'); }
 }
+async function doShare(eventId) {
+  const uid = $('#share-uid')?.value.trim();
+  if (!uid) { toast('상대방 ID를 입력해줘요'); return; }
+  if (uid === state.user?.id) { toast('나 자신과는 공유할 수 없어요'); return; }
+  try {
+    await shareEvent(eventId, uid);
+    toast('공유했어요 🔗');
+    if ($('#share-uid')) $('#share-uid').value = '';
+    await loadShareList(eventId);
+  } catch (e) { toast('공유에 실패했어요. ID를 확인해줘요'); }
+}
+async function doUnshare(eventId, uid) {
+  try { await unshareEvent(eventId, uid); toast('공유를 취소했어요'); await loadShareList(eventId); }
+  catch (e) { toast('취소에 실패했어요'); }
+}
 
-// ────────────────────────────────────────────
-// 토스트
-// ────────────────────────────────────────────
+// ── 토스트 ──
 let toastEl, toastTimer;
 function toast(msg) {
   if (!toastEl) { toastEl = document.createElement('div'); toastEl.className = 'toast'; document.body.append(toastEl); }
@@ -527,9 +552,7 @@ function toast(msg) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
 }
 
-// ────────────────────────────────────────────
-// 이벤트 위임
-// ────────────────────────────────────────────
+// ── 이벤트 위임 ──
 $('#app').addEventListener('click', (e) => {
   const t = e.target.closest('[data-action]'); if (!t) return;
   const { action, id, dow, date } = t.dataset;
@@ -552,13 +575,14 @@ $('#app').addEventListener('click', (e) => {
     case 'add-event': openEventForm(null); break;
     case 'logout': signOut(); break;
     case 'kakao-login': signInKakao(); break;
+    case 'my-id': openMyId(); break;
   }
 });
 
 document.addEventListener('click', (e) => {
   const t = e.target.closest('[data-action]'); if (!t || !sheetEl) return;
   if (!sheetEl.contains(t) && t !== backdropEl) return;
-  const { action, name, dow, c } = t.dataset;
+  const { action, name, dow, c, uid, evid } = t.dataset;
   switch (action) {
     case 'close': closeSheet(); break;
     case 'preset-pick': (presetPicks.has(name) ? presetPicks.delete(name) : presetPicks.add(name)); t.classList.toggle('picked'); break;
@@ -569,12 +593,16 @@ document.addEventListener('click', (e) => {
     case 'ev-color': evColor = c; sheetEl.querySelectorAll('.color-dot').forEach((b) => b.classList.toggle('on', b.dataset.c === c)); break;
     case 'save-event': saveEvent(); break;
     case 'del-event': removeEvent(); break;
+    case 'do-share': doShare(evId); break;
+    case 'do-unshare': doUnshare(evid, uid); break;
+    case 'copy-uid': {
+      navigator.clipboard.writeText(state.user?.id || '').then(() => toast('복사했어요!')).catch(() => toast('복사 실패'));
+      break;
+    }
   }
 });
 
-// ────────────────────────────────────────────
-// 데이터 로드
-// ────────────────────────────────────────────
+// ── 데이터 로드 ──
 async function shiftMonth(delta) {
   let m = state.calMonth + delta, y = state.calYear;
   if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
@@ -609,7 +637,7 @@ async function renderApp() {
   try { await reload(); }
   catch (e) {
     console.error(e);
-    $('#app').innerHTML = `<div class="wrap"><div class="empty">데이터를 불러오지 못했어요 😢<br>인터넷 연결이나 Supabase 설정을 확인해줘요.<br><br><small>${esc(e.message || e)}</small></div></div>`;
+    $('#app').innerHTML = `<div class="wrap"><div class="empty">데이터를 불러오지 못했어요 😢<br><small>${esc(e.message || e)}</small></div></div>`;
   }
 }
 
@@ -630,14 +658,11 @@ async function signInKakao() {
       options: {
         redirectTo: 'https://sweetdreams-zzz.vercel.app',
         scopes: 'profile_nickname profile_image',
-        queryParams: {
-          scope: 'profile_nickname profile_image',
-        },
+        queryParams: { scope: 'profile_nickname profile_image' },
       }
     });
   } catch (e) { toast('로그인을 시작하지 못했어요'); }
 }
-
 async function signOut() {
   try { await supabase.auth.signOut(); } catch (e) { /* noop */ }
   state.user = null; hideTabbar(); renderLogin();
@@ -649,15 +674,21 @@ async function boot() {
     state.user = session?.user ?? null;
   } catch (e) { state.user = null; }
 
-  if (state.user) await renderApp();
-  else renderLogin();
+  if (state.user) {
+    // 기존 데이터 owner 백필
+    await backfillOwner(state.user.id).catch(() => {});
+    await renderApp();
+  } else renderLogin();
 
   supabase.auth.onAuthStateChange((event, session) => {
     const u = session?.user ?? null;
     const changed = (u?.id) !== (state.user?.id);
     state.user = u;
     if (!u) renderLogin();
-    else if (changed) renderApp();
+    else if (changed) {
+      backfillOwner(u.id).catch(() => {});
+      renderApp();
+    }
   });
 }
 boot();
