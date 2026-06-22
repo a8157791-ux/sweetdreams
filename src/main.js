@@ -11,6 +11,21 @@ import {
 import { supabase } from './supabaseClient.js';
 
 const now0 = new Date();
+
+/* ── 다크/라이트 모드 ── */
+function getSavedMode() {
+  const saved = localStorage.getItem('sd_mode');
+  if (saved === 'dark' || saved === 'light') return saved;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+function applyMode(mode) {
+  document.documentElement.setAttribute('data-theme', mode);
+  localStorage.setItem('sd_mode', mode);
+}
+
+/* ── 아바타 URL ── */
+function getSavedAvatar() { return localStorage.getItem('sd_avatar') || null; }
+
 const state = {
   apps: [], checked: {}, total: 0, monthMap: {},
   selDow: todayDow(), loading: true,
@@ -23,7 +38,11 @@ const state = {
   selDate: todayStr(),
   friends: [],
   pendingInvites: [],
+  showProfile: false,
+  mode: getSavedMode(),
+  avatarUrl: getSavedAvatar(),
 };
+applyMode(state.mode);
 
 const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'];
 const safe = (p) => p.catch(() => []);
@@ -46,6 +65,9 @@ const ICON_PATHS = {
   link: 'M9 15l6-6M10.5 6.5 12 5a4 4 0 0 1 6 6l-1.5 1.5M13.5 17.5 12 19a4 4 0 0 1-6-6l1.5-1.5',
   x: 'M6 6l12 12M18 6 6 18',
   repeat: 'M4 9V7a2 2 0 0 1 2-2h11l-2.5-2.5M20 15v2a2 2 0 0 1-2 2H7l2.5 2.5',
+  sun: 'M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z',
+  bell: 'M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0',
+  camera: 'M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3L14.5 4ZM12 18a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
   more: 'M6 12h.01M12 12h.01M18 12h.01',
   trash: 'M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13',
 };
@@ -87,6 +109,13 @@ function moonSVG(size = 132, glow = true) {
 const CAT_ICON = { '만보기': 'footprints', '기상·인증': 'sunrise', '함께·미션': 'handshake', '기후·미션': 'sprout', '포인트적립': 'coins' };
 const iconForCat = (c) => CAT_ICON[c] || 'coins';
 const COLORS = ['var(--accent)', 'var(--accent-2)', 'var(--good)', '#E6A23C', '#E5739B'];
+
+function avatarEl(size = 40, fontSize = 15) {
+  if (state.avatarUrl) {
+    return `<button class="rd-avatar" data-action="open-profile" title="프로필" style="padding:0;overflow:hidden"><img src="${esc(state.avatarUrl)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" alt="프로필 사진"></button>`;
+  }
+  return `<button class="rd-avatar" data-action="open-profile" title="프로필" style="font-size:${fontSize}px">${esc(initial(userName()))}</button>`;
+}
 
 const $ = (s) => document.querySelector(s);
 const fmt = (n) => n.toLocaleString('ko-KR');
@@ -148,6 +177,24 @@ function render() {
   app.innerHTML = `<div class="wrap">${state.tab === 'today' ? todayView() : state.tab === 'cal' ? calView() : friendsView()}</div>`;
   ensureTabbar();
   if (state.tab === 'today') updateTally();
+  // 프로필 오버레이
+  ensureProfileOverlay();
+  const po = document.getElementById('rd-profile-overlay');
+  if (po) {
+    po.innerHTML = profileHTML();
+    po.classList.toggle('show', state.showProfile);
+    bindProfileEvents();
+  }
+  // 헤더 아바타 이미지 반영
+  document.querySelectorAll('.rd-avatar').forEach((el) => {
+    if (state.avatarUrl && !el.querySelector('img')) {
+      el.style.padding = '0'; el.style.overflow = 'hidden';
+      el.innerHTML = `<img src="${esc(state.avatarUrl)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" alt="프로필">`;
+    } else if (!state.avatarUrl && el.querySelector('img')) {
+      el.style.padding = ''; el.style.overflow = '';
+      el.innerHTML = esc(initial(userName()));
+    }
+  });
 }
 
 /* ── 오늘 ── */
@@ -162,7 +209,7 @@ function todayView() {
         <div class="rd-title">${name}님,<br>${esc(greetMsg())}</div>
         <div class="rd-sub">${dateLabelToday()}</div>
       </div>
-      <button class="rd-avatar" data-action="logout" title="로그아웃">${esc(initial(userName()))}</button>
+      <button class="rd-avatar" data-action="open-profile" title="프로필">${esc(initial(userName()))}</button>
     </div>
 
     <div class="rd-card rd-hero">
@@ -742,6 +789,147 @@ function toast(msg) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1900);
 }
 
+/* ──────────────────────────────────────────────────
+   프로필 오버레이
+   ────────────────────────────────────────────────── */
+function ensureProfileOverlay() {
+  if (!document.getElementById('rd-profile-overlay')) {
+    const el = document.createElement('div');
+    el.id = 'rd-profile-overlay';
+    el.className = 'rd-profile-overlay';
+    document.body.append(el);
+  }
+}
+
+function bigAvatarHTML() {
+  if (state.avatarUrl) {
+    return `<div class="rd-bigav" id="bigav-wrap" style="cursor:pointer" data-action="pick-avatar">
+      <img src="${esc(state.avatarUrl)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" alt="프로필 사진">
+      <div class="rd-bigav-badge">${icon('camera', 14)}</div>
+    </div>`;
+  }
+  return `<div class="rd-bigav" id="bigav-wrap" style="cursor:pointer" data-action="pick-avatar">
+    <span style="font-size:38px;font-weight:750;color:var(--accent)">${esc(initial(userName()))}</span>
+    <div class="rd-bigav-badge">${icon('camera', 14)}</div>
+  </div>`;
+}
+
+function profileHTML() {
+  const name = esc(userName());
+  const isDark = state.mode === 'dark';
+  return `
+    <div class="rd-profile-inner">
+      <div class="rd-profile-topbar">
+        <button class="rd-navbtn" data-action="close-profile" aria-label="뒤로">${icon('chevronL', 18)}</button>
+        <span style="font-size:17px;font-weight:700">프로필</span>
+        <div style="width:36px"></div>
+      </div>
+
+      <div class="rd-profile-hero">
+        ${bigAvatarHTML()}
+        <div class="rd-profile-name">${name}</div>
+        <div class="rd-profile-sub" style="color:var(--text-muted);font-size:13px;margin-top:4px">${esc(state.user?.email || '카카오 로그인')}</div>
+        <button class="rd-pill-btn" data-action="pick-avatar">프로필 사진 ${state.avatarUrl ? '바꾸기' : '추가'}</button>
+      </div>
+
+      <div class="rd-profile-section">
+        <div class="rd-profile-card">
+          <div class="rd-profile-row" data-action="toggle-mode">
+            <div class="rd-profile-icon-chip">${icon(isDark ? 'moon' : 'sun', 18)}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14.5px;font-weight:600">${isDark ? '다크 모드' : '라이트 모드'}</div>
+              <div style="font-size:11.5px;color:var(--text-faint);margin-top:2px">밤엔 어둡게, 낮엔 밝게 — 잠들기 전 눈이 편해요</div>
+            </div>
+            <button class="rd-switch ${isDark ? 'on' : ''}" id="mode-switch" aria-label="다크 모드 토글"><i></i></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="rd-profile-section">
+        <div class="rd-profile-card">
+          <div class="rd-profile-row" style="cursor:default">
+            <div class="rd-profile-icon-chip">${icon('bell', 18)}</div>
+            <div style="flex:1;font-size:14.5px;font-weight:600">알림</div>
+            <span style="font-size:13px;color:var(--text-faint)">준비 중</span>
+          </div>
+          <div style="height:1px;background:var(--surface-border);margin:0 -20px"></div>
+          <div class="rd-profile-row" style="cursor:default">
+            <div class="rd-profile-icon-chip">${icon('users', 18)}</div>
+            <div style="flex:1;font-size:14.5px;font-weight:600">친구 관리</div>
+            ${icon('chevronR', 16)}
+          </div>
+        </div>
+      </div>
+
+      <div class="rd-profile-section">
+        <button class="rd-logout-btn" data-action="profile-logout">로그아웃</button>
+      </div>
+    </div>
+    <input type="file" id="avatar-file-input" accept="image/*" style="display:none">
+  `;
+}
+
+function bindProfileEvents() {
+  const overlay = document.getElementById('rd-profile-overlay');
+  if (!overlay) return;
+
+  overlay.querySelectorAll('[data-action]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const action = el.dataset.action;
+      if (action === 'close-profile') closeProfile();
+      else if (action === 'toggle-mode') toggleMode();
+      else if (action === 'pick-avatar') triggerAvatarPick();
+      else if (action === 'profile-logout') { closeProfile(); if (confirm('로그아웃 할까요?')) signOut(); }
+    });
+  });
+
+  const fileInput = overlay.querySelector('#avatar-file-input');
+  if (fileInput) {
+    fileInput.addEventListener('change', (e) => {
+      const f = e.target.files?.[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        state.avatarUrl = r.result;
+        localStorage.setItem('sd_avatar', r.result);
+        // 오버레이 갱신
+        const po = document.getElementById('rd-profile-overlay');
+        if (po) { po.innerHTML = profileHTML(); bindProfileEvents(); }
+        // 헤더 아바타 갱신
+        document.querySelectorAll('.rd-avatar').forEach((av) => {
+          av.style.padding = '0'; av.style.overflow = 'hidden';
+          av.innerHTML = `<img src="${esc(state.avatarUrl)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" alt="프로필">`;
+        });
+      };
+      r.readAsDataURL(f);
+    });
+  }
+}
+
+function triggerAvatarPick() {
+  document.getElementById('avatar-file-input')?.click();
+}
+
+function toggleMode() {
+  state.mode = state.mode === 'dark' ? 'light' : 'dark';
+  applyMode(state.mode);
+  const po = document.getElementById('rd-profile-overlay');
+  if (po) { po.innerHTML = profileHTML(); bindProfileEvents(); }
+}
+
+function openProfile() {
+  state.showProfile = true;
+  ensureProfileOverlay();
+  const po = document.getElementById('rd-profile-overlay');
+  if (po) { po.innerHTML = profileHTML(); bindProfileEvents(); }
+  requestAnimationFrame(() => po?.classList.add('show'));
+}
+
+function closeProfile() {
+  state.showProfile = false;
+  document.getElementById('rd-profile-overlay')?.classList.remove('show');
+}
+
 /* ── 이벤트 위임 (페이지) ── */
 $('#app').addEventListener('click', (e) => {
   const t = e.target.closest('[data-action]'); if (!t) return;
@@ -758,6 +946,7 @@ $('#app').addEventListener('click', (e) => {
     case 'cal-day': state.selDate = date; rerenderDayPanel(); document.querySelectorAll('.rd-cell').forEach((c) => c.classList.toggle('sel', c.dataset.date === date)); break;
     case 'toggle-event-cal': toggleEventCal(id); break;
     case 'add-event': openEventForm(null); break;
+    case 'open-profile': openProfile(); break;
     case 'logout': if (confirm('로그아웃 할까요?')) signOut(); break;
     case 'gen-invite': genInvite(); break;
     case 'accept-code': { const code = ($('#invite-code-input')?.value || '').trim().toUpperCase(); if (code) doAcceptInvite(code); else toast('코드를 입력해줘요'); break; }
