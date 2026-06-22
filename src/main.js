@@ -45,6 +45,7 @@ const state = {
 applyMode(state.mode);
 
 const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'];
+const CAL_DAYS = ['일', '월', '화', '수', '목', '금', '토']; // 달력 헤더용 (일요일 시작)
 const safe = (p) => p.catch(() => []);
 
 /* ── Aurora 라인 아이콘 (Lucide 스타일, stroke 1.75) ── */
@@ -394,7 +395,7 @@ function calView() {
         <div class="m">${y}년 ${m + 1}월</div>
         <button class="rd-navbtn" data-action="cal-next" aria-label="다음 달">${icon('chevronR', 18)}</button>
       </div>
-      <div class="rd-dow">${WEEKDAYS.map((d, i) => `<span class="${i === 6 ? 'sun' : ''}">${d}</span>`).join('')}</div>
+      <div class="rd-dow">${CAL_DAYS.map((d, i) => `<span class="${i === 0 ? 'sun' : ''}">${d}</span>`).join('')}</div>
       <div class="rd-grid">${calCellsHTML()}</div>
     </div>
     <div class="rd-section-label" id="dayLabel">${dayLabelText()}</div>
@@ -404,7 +405,7 @@ function calView() {
 }
 function calCellsHTML() {
   const y = state.calYear, m = state.calMonth;
-  const first = (new Date(y, m, 1).getDay() + 6) % 7;
+  const first = new Date(y, m, 1).getDay(); // 0=일 시작
   const days = new Date(y, m + 1, 0).getDate();
   const n = new Date();
   const thisMonth = (n.getFullYear() === y && n.getMonth() === m);
@@ -739,17 +740,19 @@ async function saveEvent() {
   const start_time = t ? `${t}:00` : null;
   const is_todo = $('#e-todo').classList.contains('on');
   try {
+    let msg;
     if (evId) {
       await updateEvent(evId, { title, event_date, start_time, is_todo, color: evColor });
-      toast('일정을 수정했어요');
+      msg = '일정을 수정했어요';
     } else {
       const newId = await addEvent({ title, event_date, start_time, is_todo, color: evColor });
       if (evSharePicks.size && newId) await Promise.all([...evSharePicks].map((fid) => shareFriendEvent(newId, fid)));
-      toast(evSharePicks.size ? `일정 추가 + ${evSharePicks.size}명과 공유했어요 🔗` : '일정을 추가했어요');
+      msg = evSharePicks.size ? `일정 추가 + ${evSharePicks.size}명과 공유했어요 🔗` : '일정을 추가했어요';
     }
     if (event_date.startsWith(`${state.calYear}-${pad(state.calMonth + 1)}`)) state.selDate = event_date;
     closeSheet(); await reloadEvents(); render();
-  } catch (e) { toast('저장에 실패했어요'); }
+    toast(msg);
+  } catch (e) { console.error(e); toast('저장에 실패했어요'); }
 }
 async function removeEvent() {
   if (!evId) return;
