@@ -78,10 +78,11 @@ function icon(name, size = 22, sw = 1.75) {
 }
 
 /* ── 달 일러스트 (crescent + glow + stars) ── */
+const MOON_MOTION = 'twinkle';  // 'float' 잔잔 · 'twinkle' 반짝 · 'orbit' 회전 · 'none' 끄기
 let moonSeq = 0;
-function moonSVG(size = 132, glow = true) {
+function moonSVG(size = 132, glow = true, motion = MOON_MOTION) {
   const id = 'm' + (moonSeq++);
-  return `<svg width="${size}" height="${size}" viewBox="0 0 160 160" fill="none" style="display:block;overflow:visible" aria-hidden="true">
+  return `<svg width="${size}" height="${size}" viewBox="0 0 160 160" fill="none" class="sd-moon" data-moon="${motion}" style="display:block;overflow:visible" aria-hidden="true">
     <defs>
       <radialGradient id="${id}g" cx="50%" cy="46%" r="50%">
         <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.42"/>
@@ -93,12 +94,14 @@ function moonSVG(size = 132, glow = true) {
       </linearGradient>
       <mask id="${id}c"><rect width="160" height="160" fill="black"/><circle cx="78" cy="80" r="40" fill="white"/><circle cx="98" cy="68" r="36" fill="black"/></mask>
     </defs>
-    ${glow ? `<circle cx="80" cy="78" r="78" fill="url(#${id}g)"/>` : ''}
-    <g mask="url(#${id}c)"><circle cx="78" cy="80" r="40" fill="url(#${id}b)"/></g>
-    <circle cx="62" cy="74" r="5" fill="#E3C896" opacity="0.55"/>
-    <circle cx="58" cy="92" r="3.4" fill="#E3C896" opacity="0.45"/>
-    <circle cx="72" cy="98" r="2.6" fill="#E3C896" opacity="0.4"/>
-    <g fill="var(--accent)">
+    <g class="sd-m-bob">
+      ${glow ? `<circle class="sd-m-glow" cx="80" cy="78" r="78" fill="url(#${id}g)"/>` : ''}
+      <g mask="url(#${id}c)"><circle cx="78" cy="80" r="40" fill="url(#${id}b)"/></g>
+      <circle cx="62" cy="74" r="5" fill="#E3C896" opacity="0.55"/>
+      <circle cx="58" cy="92" r="3.4" fill="#E3C896" opacity="0.45"/>
+      <circle cx="72" cy="98" r="2.6" fill="#E3C896" opacity="0.4"/>
+    </g>
+    <g class="sd-m-stars" fill="var(--accent)">
       <path d="M124 44 l2 5.4 5.4 2 -5.4 2 -2 5.4 -2 -5.4 -5.4 -2 5.4 -2 Z" opacity="0.9"/>
       <path d="M118 96 l1.3 3.4 3.4 1.3 -3.4 1.3 -1.3 3.4 -1.3 -3.4 -3.4 -1.3 3.4 -1.3 Z" opacity="0.7"/>
       <circle cx="44" cy="52" r="2" opacity="0.65"/><circle cx="132" cy="78" r="1.6" opacity="0.55"/><circle cx="40" cy="108" r="1.5" opacity="0.5"/>
@@ -171,7 +174,11 @@ function greetMsg() {
 function render() {
   const app = $('#app');
   if (state.loading) {
-    app.innerHTML = `<div class="wrap"><div class="loading"><div class="spinner"></div><div>불러오는 중…</div></div></div>`;
+    app.innerHTML = `<div class="wrap"><div class="loading">
+  ${moonSVG(110, true, 'twinkle')}
+  <div class="sd-track"><i></i></div>
+  <div>오늘 밤을 여는 중…</div>
+</div></div>`;
     return;
   }
   app.innerHTML = `<div class="wrap">${state.tab === 'today' ? todayView() : state.tab === 'cal' ? calView() : friendsView()}</div>`;
@@ -194,6 +201,26 @@ function render() {
       el.style.padding = ''; el.style.overflow = '';
       el.innerHTML = esc(initial(userName()));
     }
+  });
+  revealOnScroll();
+}
+
+function revealOnScroll() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const items = document.querySelectorAll(
+    '.wrap > .rd-card, .wrap > .rd-section-label, .wrap > .rd-actions, .rd-list > .rd-row'
+  );
+  if (!items.length) return;
+  let i = 0;
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) { e.target.classList.add('sd-in'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+  items.forEach((el) => {
+    el.classList.add('sd-rv');
+    el.style.transitionDelay = Math.min(i++, 9) * 55 + 'ms';
+    io.observe(el);
   });
 }
 

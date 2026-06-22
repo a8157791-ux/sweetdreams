@@ -407,3 +407,68 @@ button { -webkit-tap-highlight-color: transparent; }
   -webkit-backdrop-filter: blur(var(--glass-blur)); backdrop-filter: blur(var(--glass-blur));
 }
 .rd-logout-btn:active { transform: scale(.985); }
+/* ============================================================
+   Sweet Dreams — Motion (append to src/style.css)
+   Vanilla, token-driven. Paste this whole block at the END of
+   src/style.css (just before or after the existing
+   prefers-reduced-motion rule — both are fine).
+
+   Speed knob: set --mo-mult on :root (or .wrap) to scale every loop.
+   1 = 기본 · 1.4 = 느긋 · 0.72 = 활기
+   ============================================================ */
+:root { --mo-mult: 1; }
+
+/* ── Moon illustration ─────────────────────────────────────── */
+.sd-moon { overflow: visible; }
+.sd-moon .sd-m-stars { transform-origin: 80px 78px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* float — 잔잔: soft bob + glow breathe */
+  .sd-moon[data-moon="float"]   .sd-m-bob   { animation: sdBob  calc(6s   * var(--mo-mult)) ease-in-out infinite; }
+  .sd-moon[data-moon="float"]   .sd-m-glow  { animation: sdGlow calc(5s   * var(--mo-mult)) ease-in-out infinite; }
+  .sd-moon[data-moon="float"]   .sd-m-stars > * { animation: sdTwinkleSoft calc(4.5s * var(--mo-mult)) ease-in-out infinite; }
+
+  /* twinkle — 반짝: quicker bob + staggered star pop + glow pulse */
+  .sd-moon[data-moon="twinkle"] .sd-m-bob   { animation: sdBob  calc(5s   * var(--mo-mult)) ease-in-out infinite; }
+  .sd-moon[data-moon="twinkle"] .sd-m-glow  { animation: sdGlow calc(3.6s * var(--mo-mult)) ease-in-out infinite; }
+  .sd-moon[data-moon="twinkle"] .sd-m-stars > * { animation: sdTwinkle calc(2.6s * var(--mo-mult)) ease-in-out infinite; }
+  .sd-moon[data-moon="twinkle"] .sd-m-stars > *:nth-child(2) { animation-delay: calc(.5s  * var(--mo-mult)); }
+  .sd-moon[data-moon="twinkle"] .sd-m-stars > *:nth-child(3) { animation-delay: calc(.9s  * var(--mo-mult)); }
+  .sd-moon[data-moon="twinkle"] .sd-m-stars > *:nth-child(4) { animation-delay: calc(1.3s * var(--mo-mult)); }
+  .sd-moon[data-moon="twinkle"] .sd-m-stars > *:nth-child(5) { animation-delay: calc(1.7s * var(--mo-mult)); }
+
+  /* orbit — 회전: bob + stars slowly orbiting the moon */
+  .sd-moon[data-moon="orbit"]   .sd-m-bob   { animation: sdBob  calc(6s   * var(--mo-mult)) ease-in-out infinite; }
+  .sd-moon[data-moon="orbit"]   .sd-m-glow  { animation: sdGlow calc(5s   * var(--mo-mult)) ease-in-out infinite; }
+  .sd-moon[data-moon="orbit"]   .sd-m-stars { animation: sdOrbit calc(22s * var(--mo-mult)) linear infinite; }
+}
+
+@keyframes sdBob   { 0%, 100% { transform: translateY(0); }        50% { transform: translateY(-6px); } }
+@keyframes sdGlow  { 0%, 100% { opacity: .85; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+@keyframes sdTwinkleSoft { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@keyframes sdTwinkle     { 0%, 100% { opacity: .35; transform: scale(.8); } 45% { opacity: 1; transform: scale(1.15); } }
+@keyframes sdOrbit { to { transform: rotate(360deg); } }
+
+/* ── Scroll reveal (cards + checklist rows enter on scroll) ── */
+@media (prefers-reduced-motion: no-preference) {
+  .sd-rv {
+    opacity: 0; transform: translateY(20px) scale(.97);
+    transition: opacity .5s var(--ease), transform .6s cubic-bezier(.34, 1.5, .5, 1);
+    will-change: opacity, transform;
+  }
+  .sd-rv.sd-in { opacity: 1; transform: none; }
+}
+
+/* ── Boot / loading splash ─────────────────────────────────── */
+.loading .sd-track { width: 132px; height: 4px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.loading .sd-track i { display: block; height: 100%; transform-origin: left; background: var(--accent); border-radius: 999px; transform: scaleX(0); }
+@media (prefers-reduced-motion: no-preference) {
+  .loading .sd-track i { animation: sdFill calc(1.25s * var(--mo-mult)) var(--ease) forwards; }
+}
+@keyframes sdFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* reduced-motion: show everything in its resting state */
+@media (prefers-reduced-motion: reduce) {
+  .sd-rv { opacity: 1 !important; transform: none !important; }
+  .loading .sd-track i { transform: scaleX(1) !important; }
+}
