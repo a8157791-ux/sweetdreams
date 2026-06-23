@@ -14,9 +14,10 @@ const now0 = new Date();
 
 /* ── 다크/라이트 모드 ── */
 function getSavedMode() {
-  const saved = localStorage.getItem('sd_mode');
-  if (saved === 'dark' || saved === 'light') return saved;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  // const saved = localStorage.getItem('sd_mode');
+  // if (saved === 'dark' || saved === 'light') return saved;
+  // return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  const initMode = localStorage.getItem('sd_mode') || 'dark';
 }
 function applyMode(mode) {
   document.documentElement.setAttribute('data-theme', mode);
