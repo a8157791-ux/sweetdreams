@@ -240,7 +240,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .rd-sheet-head .sub { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
 .rd-sheet-close { width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer; background: var(--surface-2); color: var(--text-muted); display: flex; align-items: center; justify-content: center; flex: none; }
 .rd-field { margin-bottom: 14px; }
-.rd-field > label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text-muted); margin-bottom: 7px; letter-spacing: -.01em; }
+.rd-field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text-muted); margin-bottom: 7px; letter-spacing: -.01em; }
 .rd-row2 { display: flex; gap: 10px; }
 .rd-row2 > div { flex: 1; min-width: 0; }
 .rd-field select.rd-input { -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23A6ABC6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }

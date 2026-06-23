@@ -659,10 +659,8 @@ function openEventForm(editEv = null) {
 
   openSheet(`${sheetHead(editEv ? '일정 수정' : '일정 추가')}
     <div class="rd-field"><label>제목</label><input class="rd-input" id="e-title" type="text" placeholder="예) 친구랑 저녁 약속" value="${esc(editEv?.title || '')}"></div>
-    <div class="rd-field"><div class="rd-row2">
-      <div><label>날짜</label><input class="rd-input" id="e-date" type="date" value="${date}"></div>
-      <div><label>시간 (선택)</label><input class="rd-input" id="e-time" type="time" value="${time}"></div>
-    </div></div>
+    <div class="rd-field"><label>날짜</label><input class="rd-input" id="e-date" type="date" value="${date}"></div>
+    <div class="rd-field"><label>시간 (선택)</label><input class="rd-input" id="e-time" type="time" value="${time}"></div>
     <div class="rd-field"><label>색상</label>
       <div class="rd-swatches">${COLORS.map((c) => `<button class="rd-sw ${c === evColor ? 'on' : ''}" data-action="ev-color" data-c="${c}" style="background:${c}" aria-label="색상"></button>`).join('')}</div></div>
     <div class="rd-field">
